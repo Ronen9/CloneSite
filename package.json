@@ -1,0 +1,22 @@
+{
+  "name": "homepage-cloner",
+  "version": "1.0.0",
+  "description": "Clone homepages using Firecrawl API and convert to React components",
+  "main": "clone-homepage.js",
+  "scripts": {
+    "clone": "node clone-homepage.js",
+    "server": "node server.js",
+    "dev": "concurrently \"npm run server\" \"cd homepage-clone && npm run dev\"",
+    "start": "cd homepage-clone && npm start",
+    "build": "cd homepage-clone && npm run build"
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "express": "^4.18.0",
+    "cors": "^2.8.5",
+    "concurrently": "^7.6.0"
+  },
+  "keywords": ["firecrawl", "homepage", "clone", "react", "tailwind"],
+  "author": "",
+  "license": "MIT"
+}
