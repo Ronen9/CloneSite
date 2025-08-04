@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
+// Simple Responsive Website Scraper Interface
 const CloneInterface = () => {
   const [url, setUrl] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -54,21 +55,34 @@ const CloneInterface = () => {
     setError(null);
   };
 
+  // Inject Microsoft Omnichannel chat widget on all pages (homepage and after scrape)
+  useEffect(() => {
+    // Prevent duplicate script injection
+    if (!document.getElementById('Microsoft_Omnichannel_LCWidget')) {
+      const script = document.createElement('script');
+      script.id = 'Microsoft_Omnichannel_LCWidget';
+      script.src = 'https://oc-cdn-public-eur.azureedge.net/livechatwidget/scripts/LiveChatBootstrapper.js';
+      script.setAttribute('data-app-id', '35501611-0d9e-4449-a089-15db04dc1540');
+      script.setAttribute('data-lcw-version', 'prod');
+      script.setAttribute('data-org-id', '28ef5156-a985-ef11-ac1c-7c1e52504374');
+      script.setAttribute('data-org-url', 'https://m-28ef5156-a985-ef11-ac1c-7c1e52504374.eu.omnichannelengagementhub.com');
+      script.async = true;
+      document.body.appendChild(script);
+    }
+  }, []);
+
   // Full screen cloned website view
   if (clonedHtml && !showInput) {
     return (
       <div className="relative w-full h-screen">
-        {/* Floating Clone Another Button */}
+        {/* Simple Start Over Button */}
         <button
           onClick={handleCloneAnother}
-          className="fixed top-4 right-4 z-50 bg-black bg-opacity-80 hover:bg-opacity-90 text-white px-6 py-3 rounded-full shadow-lg transition-all duration-200 backdrop-blur-sm border border-white border-opacity-20"
+          className="fixed top-4 left-4 z-50 bg-white/90 hover:bg-white text-gray-800 px-4 py-2 rounded-lg shadow-lg transition-all duration-200 text-sm font-medium"
         >
-          <svg className="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          Clone Another Website
+          ← Start Over
         </button>
-        
+        {/* Chat widget stays floating on top via script injected above */}
         {/* Full Screen Iframe */}
         <iframe
           srcDoc={clonedHtml}
@@ -81,12 +95,10 @@ const CloneInterface = () => {
             background: 'white'
           }}
           onLoad={(e) => {
-            // Ensure iframe content is properly styled
             try {
               const iframe = e.target;
               const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
               if (iframeDoc) {
-                // Add additional styling if needed
                 const style = iframeDoc.createElement('style');
                 style.textContent = `
                   body { 
@@ -98,7 +110,7 @@ const CloneInterface = () => {
                 `;
                 iframeDoc.head.appendChild(style);
               }
-            } catch (err) {
+            } catch {
               console.log('Could not access iframe content (CORS)');
             }
           }}
@@ -107,58 +119,39 @@ const CloneInterface = () => {
     );
   }
 
-  // Minimal input interface
+  // UI identical to https://website-scraper-lemon.vercel.app/
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4">
-      <div className="w-full max-w-2xl mx-auto">
-        {/* Minimal Search Form */}
-        <form onSubmit={handleSubmit} className="mb-8">
-          <div className="relative">
-            <div className="flex items-center bg-white rounded-full px-6 py-4 shadow-xl hover:shadow-2xl transition-all duration-300 border border-gray-200 focus-within:border-blue-400 focus-within:ring-4 focus-within:ring-blue-100">
-              <input
-                type="text"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                placeholder="Enter a website URL"
-                className="flex-1 text-lg outline-none text-gray-700 placeholder-gray-400"
-                disabled={isLoading}
-                autoFocus
-              />
-              <button
-                type="submit"
-                disabled={isLoading || !url.trim()}
-                className="ml-4 bg-blue-600 text-white px-8 py-3 rounded-full hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all duration-200 flex items-center font-medium shadow-lg"
-              >
-                {isLoading ? (
-                  <>
-                    <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Cloning...
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                    </svg>
-                    Clone
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
+    <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-[#f8fafc] via-[#a8edea] to-[#fed6e3]">
+      <div className="rounded-3xl shadow-4xl flex flex-col items-center px-10 py-12 backdrop-blur-2xl bg-white/80 border-2 border-cyan-300" style={{ minWidth: 370, maxWidth: 440, width: '100%', boxShadow: '0 20px 60px 0 rgba(80,180,220,0.18)' }}>
+        <h1 className="text-4xl font-extrabold text-gray-800 text-center mb-4 leading-tight drop-shadow-lg tracking-tight">Website Background<br/>Scraper</h1>
+        <p className="text-gray-700 text-lg text-center mb-8">Enter any website URL or description to use as your background</p>
+        <form onSubmit={handleSubmit} className="w-full flex flex-col items-center gap-6">
+          <input
+            type="text"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            placeholder="Enter URL (e.g., apple.com) or description (e.g., 'netflix website')"
+            className="w-5/6 max-w-xs text-lg px-5 py-3 rounded-xl border-2 border-cyan-400 focus:border-cyan-600 focus:ring-2 focus:ring-cyan-200/30 outline-none transition-all duration-200 text-gray-700 placeholder-gray-400 bg-white/95 shadow-md"
+            disabled={isLoading}
+            autoFocus
+          />
+          <div className="h-10" />
+          <button
+            type="submit"
+            disabled={isLoading || !url.trim()}
+            className="w-1/2 py-2 rounded-full text-base font-extrabold text-white shadow-md transition-all duration-200 bg-gradient-to-r from-blue-600 to-purple-700 hover:from-blue-700 hover:to-purple-800 disabled:from-gray-300 disabled:to-gray-400 disabled:text-gray-200"
+            style={{marginTop: '0.5rem'}}
+          >
+            {isLoading ? (
+              <span>Scraping...</span>
+            ) : (
+              'Scrape Website'
+            )}
+          </button>
         </form>
-
-        {/* Error Message */}
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-2xl p-6 shadow-lg">
-            <div className="flex items-center">
-              <svg className="w-6 h-6 text-red-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <p className="text-red-700 font-medium">{error}</p>
-            </div>
+          <div className="mt-6 bg-red-100 border border-red-300 rounded-2xl p-4 w-full text-center">
+            <p className="text-red-600 text-base">{error}</p>
           </div>
         )}
       </div>

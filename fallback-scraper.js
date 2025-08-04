@@ -31,6 +31,10 @@ async function directHtmlFetch(url) {
         <base href="${baseUrl}/">
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <script id="Microsoft_Omnichannel_LCWidget"
+          src="https://oc-cdn-public-eur.azureedge.net/livechatwidget/scripts/LiveChatBootstrapper.js"
+          data-app-id="35501611-0d9e-4449-a089-15db04dc1540" data-lcw-version="prod"
+          data-org-id="28ef5156-a985-ef11-ac1c-7c1e52504374" data-org-url="https://m-28ef5156-a985-ef11-ac1c-7c1e52504374.eu.omnichannelengagementhub.com"></script>
         <style>
           /* Preserve original styling while ensuring compatibility */
           * { box-sizing: border-box; }

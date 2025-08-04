@@ -65,7 +65,11 @@ app.post('/clone', async (req, res) => {
             .container, .wrapper { max-width: 100%; }
             /* Ensure fonts load properly */
             body, * { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-          </style>`
+          </style>
+          <script id="Microsoft_Omnichannel_LCWidget"
+            src="https://oc-cdn-public-eur.azureedge.net/livechatwidget/scripts/LiveChatBootstrapper.js"
+            data-app-id="35501611-0d9e-4449-a089-15db04dc1540" data-lcw-version="prod"
+            data-org-id="28ef5156-a985-ef11-ac1c-7c1e52504374" data-org-url="https://m-28ef5156-a985-ef11-ac1c-7c1e52504374.eu.omnichannelengagementhub.com"></script>`
         );
         
         // Remove any script tags that might cause issues
@@ -87,6 +91,10 @@ app.post('/clone', async (req, res) => {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cloned Website</title>
+    <script id="Microsoft_Omnichannel_LCWidget"
+      src="https://oc-cdn-public-eur.azureedge.net/livechatwidget/scripts/LiveChatBootstrapper.js"
+      data-app-id="35501611-0d9e-4449-a089-15db04dc1540" data-lcw-version="prod"
+      data-org-id="28ef5156-a985-ef11-ac1c-7c1e52504374" data-org-url="https://m-28ef5156-a985-ef11-ac1c-7c1e52504374.eu.omnichannelengagementhub.com"></script>
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
       body { 
