@@ -58,6 +58,8 @@ async function directHtmlFetch(url) {
 }
 
 module.exports = async function handler(req, res) {
+  // Ensure JSON response for Vercel (prevents plain text rendering)
+  res.setHeader('Content-Type', 'application/json');
   // Enable CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
