@@ -7,8 +7,9 @@
     "clone": "node clone-homepage.js",
     "server": "node server.js",
     "dev": "concurrently \"npm run server\" \"cd homepage-clone && npm run dev\"",
-    "start": "cd homepage-clone && npm start",
-    "build": "cd homepage-clone && npm run build"
+    "build": "cd homepage-clone && npm install && npm run build",
+    "vercel-build": "cd homepage-clone && npm install && npm run build",
+    "start": "cd homepage-clone && npm start"
   },
   "dependencies": {
     "axios": "^1.6.0",

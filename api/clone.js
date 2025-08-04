@@ -1,9 +1,59 @@
 // Vercel serverless function for cloning websites
-import axios from 'axios';
+const axios = require('axios');
 
-const firecrawlApiKey = "fc-0515511a88e4440292549c718ed2821a";
+const firecrawlApiKey = process.env.FIRECRAWL_API_KEY || "fc-0515511a88e4440292549c718ed2821a";
 
-export default async function handler(req, res) {
+// Direct HTML fetch fallback function
+async function directHtmlFetch(url) {
+  try {
+    console.log(`🔄 Direct fetch: ${url}`);
+    
+    const response = await axios.get(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+      },
+      timeout: 10000,
+      maxRedirects: 5
+    });
+
+    let htmlContent = response.data;
+    
+    if (htmlContent && htmlContent.includes('<html')) {
+      const baseUrl = new URL(url).origin;
+      
+      // Add base tag and enhancements
+      htmlContent = htmlContent.replace(
+        /<head([^>]*)>/i,
+        `<head$1>
+        <base href="${baseUrl}/">
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+          * { box-sizing: border-box; }
+          body { margin: 0; padding: 0; }
+          img { max-width: 100%; height: auto; }
+          .container, .wrapper { max-width: 100%; }
+        </style>`
+      );
+      
+      // Remove scripts and fix URLs
+      htmlContent = htmlContent.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+      htmlContent = htmlContent.replace(/src="\/([^"]*?)"/g, `src="${baseUrl}/$1"`);
+      htmlContent = htmlContent.replace(/href="\/([^"]*?)"/g, `href="${baseUrl}/$1"`);
+      htmlContent = htmlContent.replace(/url\(['"]?\/([^'")\s]*?)['"]?\)/g, `url('${baseUrl}/$1')`);
+      
+      return { success: true, html: htmlContent };
+    }
+    
+    throw new Error('No valid HTML content found');
+    
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+module.exports = async function handler(req, res) {
   // Enable CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -33,8 +83,8 @@ export default async function handler(req, res) {
         url: url,
         formats: ["html"],
         onlyMainContent: false,
-        includeTags: ["a", "img", "h1", "h2", "h3", "h4", "h5", "h6", "p", "div", "span", "nav", "header", "footer", "section", "article"],
-        excludeTags: ["script", "style", "meta", "link"]
+        waitFor: 3000,
+        screenshot: false
       },
       {
         headers: {
@@ -48,33 +98,81 @@ export default async function handler(req, res) {
     let htmlContent = null;
     if (response.data && response.data.data) {
       if (response.data.data.html) {
+        // Clean and enhance the HTML content
         htmlContent = response.data.data.html;
+        
+        // Add base tag to handle relative URLs
+        const baseUrl = new URL(url).origin;
+        htmlContent = htmlContent.replace(
+          '<head>',
+          `<head>
+          <base href="${baseUrl}/">
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <style>
+            * { box-sizing: border-box; }
+            body { margin: 0; padding: 0; overflow-x: hidden; }
+            img { max-width: 100%; height: auto; }
+            .container, .wrapper { max-width: 100%; }
+          </style>`
+        );
+        
+        // Remove potentially problematic scripts
+        htmlContent = htmlContent.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+        
+        // Fix relative URLs
+        htmlContent = htmlContent.replace(/src="\/([^"]*?)"/g, `src="${baseUrl}/$1"`);
+        htmlContent = htmlContent.replace(/href="\/([^"]*?)"/g, `href="${baseUrl}/$1"`);
+        htmlContent = htmlContent.replace(/url\(\/([^)]*?)\)/g, `url(${baseUrl}/$1)`);
+        
       } else if (response.data.data.content) {
-        // Convert markdown content to basic HTML structure
+        // Convert markdown content to enhanced HTML
         const content = response.data.data.content;
+        const baseUrl = new URL(url).origin;
+        
         htmlContent = `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cloned Homepage</title>
+    <base href="${baseUrl}/">
+    <title>Cloned Website</title>
     <style>
-      body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; line-height: 1.6; color: #333; }
-      h1, h2, h3 { color: #222; margin: 1.5em 0 0.5em 0; }
-      h1 { font-size: 2.5em; }
-      h2 { font-size: 2em; }
-      h3 { font-size: 1.5em; }
-      p { margin: 1em 0; }
-      a { color: #0066cc; text-decoration: none; }
-      a:hover { text-decoration: underline; }
-      .content { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-      ul, ol { margin: 1em 0; padding-left: 2em; }
-      li { margin: 0.5em 0; }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body { 
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif; 
+        line-height: 1.6; 
+        color: #333; 
+        background: #fff;
+        padding: 2rem;
+      }
+      .container { max-width: 1200px; margin: 0 auto; }
+      h1 { font-size: 2.5rem; font-weight: 700; margin-bottom: 1rem; color: #1e293b; }
+      h2 { font-size: 2rem; font-weight: 600; margin: 2rem 0 1rem 0; color: #334155; }
+      h3 { font-size: 1.5rem; font-weight: 600; margin: 1.5rem 0 0.75rem 0; color: #475569; }
+      p { margin-bottom: 1rem; color: #64748b; font-size: 1.1rem; }
+      a { color: #2563eb; text-decoration: none; font-weight: 500; }
+      a:hover { color: #1d4ed8; text-decoration: underline; }
+      ul, ol { margin: 1rem 0; padding-left: 2rem; color: #64748b; }
+      li { margin: 0.5rem 0; }
     </style>
 </head>
 <body>
-    <div class="content">
-        ${content.replace(/\n\n/g, '</p><p>').replace(/^/, '<p>').replace(/$/, '</p>')}
+    <div class="container">
+        ${content
+          .replace(/^# (.*$)/gm, '<h1>$1</h1>')
+          .replace(/^## (.*$)/gm, '<h2>$1</h2>')
+          .replace(/^### (.*$)/gm, '<h3>$1</h3>')
+          .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+          .replace(/\*(.*?)\*/g, '<em>$1</em>')
+          .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>')
+          .replace(/\n\n/g, '</p><p>')
+          .replace(/^(?!<[h|div])/, '<p>')
+          .replace(/(?<!>)$/, '</p>')
+          .replace(/<p><\/p>/g, '')
+          .replace(/<p>(<h[1-6]>)/g, '$1')
+          .replace(/(<\/h[1-6]>)<\/p>/g, '$1')
+        }
     </div>
 </body>
 </html>`;
@@ -96,10 +194,32 @@ export default async function handler(req, res) {
     }
 
   } catch (error) {
-    console.error("❌ Clone error:", error.message);
+    console.error("❌ Firecrawl failed, trying direct fetch:", error.message);
+    
+    // Fallback to direct HTML fetch
+    try {
+      const fallbackResult = await directHtmlFetch(url);
+      
+      if (fallbackResult.success) {
+        res.json({
+          success: true,
+          url: url,
+          size: `${(fallbackResult.html.length / 1024).toFixed(2)} KB`,
+          status: "Successfully cloned (direct fetch)",
+          previewHtml: fallbackResult.html,
+          html: fallbackResult.html
+        });
+        console.log(`✅ Successfully cloned via direct fetch: ${url}`);
+        return;
+      }
+    } catch (fallbackError) {
+      console.error("❌ Direct fetch also failed:", fallbackError.message);
+    }
+    
+    // If both methods fail
     res.status(500).json({ 
       error: `Failed to clone website: ${error.message}`,
       url: url
     });
   }
-}
+};
