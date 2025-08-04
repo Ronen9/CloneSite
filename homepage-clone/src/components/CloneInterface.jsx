@@ -71,10 +71,10 @@ const CloneInterface = () => {
     }
   }, []);
 
-  // Full screen cloned website view
+  // Full screen cloned website view (render HTML directly)
   if (clonedHtml && !showInput) {
     return (
-      <div className="relative w-full h-screen">
+      <div className="relative w-full min-h-screen bg-white">
         {/* Simple Start Over Button */}
         <button
           onClick={handleCloneAnother}
@@ -82,38 +82,11 @@ const CloneInterface = () => {
         >
           ← Start Over
         </button>
-        {/* Chat widget stays floating on top via script injected above */}
-        {/* Full Screen Iframe */}
-        <iframe
-          srcDoc={clonedHtml}
-          className="w-full h-full border-0"
-          title="Cloned website"
-          sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-top-navigation"
-          loading="lazy"
-          style={{
-            colorScheme: 'normal',
-            background: 'white'
-          }}
-          onLoad={(e) => {
-            try {
-              const iframe = e.target;
-              const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
-              if (iframeDoc) {
-                const style = iframeDoc.createElement('style');
-                style.textContent = `
-                  body { 
-                    margin: 0 !important; 
-                    padding: 0 !important; 
-                    overflow-x: hidden !important;
-                  }
-                  * { box-sizing: border-box !important; }
-                `;
-                iframeDoc.head.appendChild(style);
-              }
-            } catch {
-              console.log('Could not access iframe content (CORS)');
-            }
-          }}
+        {/* Render the HTML as real HTML, not plain text */}
+        <div
+          className="w-full min-h-screen"
+          style={{ zIndex: 1 }}
+          dangerouslySetInnerHTML={{ __html: clonedHtml }}
         />
       </div>
     );
