@@ -71,10 +71,10 @@ const CloneInterface = () => {
     }
   }, []);
 
-  // Full screen cloned website view (render HTML directly)
+  // Full screen cloned website view
   if (clonedHtml && !showInput) {
     return (
-      <div className="relative w-full min-h-screen bg-white">
+      <div className="relative w-full h-screen">
         {/* Improved Back Button */}
         <button
           onClick={handleCloneAnother}
@@ -90,11 +90,38 @@ const CloneInterface = () => {
           </svg>
           <span>Back</span>
         </button>
-        {/* Render the HTML as real HTML, not plain text */}
-        <div
-          className="w-full min-h-screen"
-          style={{ zIndex: 1 }}
-          dangerouslySetInnerHTML={{ __html: clonedHtml }}
+        
+        {/* Full Screen Iframe - Better for Vercel deployment */}
+        <iframe
+          srcDoc={clonedHtml}
+          className="w-full h-full border-0"
+          title="Cloned website"
+          sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-top-navigation allow-modals"
+          loading="lazy"
+          style={{
+            colorScheme: 'normal',
+            background: 'white'
+          }}
+          onLoad={(e) => {
+            try {
+              const iframe = e.target;
+              const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+              if (iframeDoc) {
+                const style = iframeDoc.createElement('style');
+                style.textContent = `
+                  body { 
+                    margin: 0 !important; 
+                    padding: 0 !important; 
+                    overflow-x: hidden !important;
+                  }
+                  * { box-sizing: border-box !important; }
+                `;
+                iframeDoc.head.appendChild(style);
+              }
+            } catch {
+              console.log('Could not access iframe content (CORS)');
+            }
+          }}
         />
       </div>
     );
