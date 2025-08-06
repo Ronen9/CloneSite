@@ -28,48 +28,96 @@ app.post('/clone', async (req, res) => {
         url: url,
         formats: ["html"],
         onlyMainContent: false,
-        waitFor: 3000,
+        includeHtml: true,
+        waitFor: 5000,
         screenshot: false,
-        extractorOptions: {
-          mode: "llm-extraction-from-raw-html"
-        }
+        removeBase64Images: false
       },
       {
         headers: {
           Authorization: `Bearer ${firecrawlApiKey}`,
           "Content-Type": "application/json"
-        }
+        },
+        timeout: 30000
       }
     );
 
-    // Handle both html and content formats from Firecrawl
+        // Handle both html and content formats from Firecrawl
     let htmlContent = null;
     if (response.data && response.data.data) {
       if (response.data.data.html) {
-        // Clean and enhance the HTML content
+        // Clean and enhance the HTML content while preserving original styling
         htmlContent = response.data.data.html;
         
-        // Add base tag to handle relative URLs and improve CSS loading
-        htmlContent = htmlContent.replace(
-          '<head>',
-          `<head>
-          <base href="${new URL(url).origin}/">
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <style>
-            /* Ensure all elements are visible and properly styled */
-            * { box-sizing: border-box; }
-            body { margin: 0; padding: 0; overflow-x: hidden; }
-            img { max-width: 100%; height: auto; }
-            /* Fix any broken layouts */
-            .container, .wrapper { max-width: 100%; }
-            /* Ensure fonts load properly */
-            body, * { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-          </style>
-          <script id="Microsoft_Omnichannel_LCWidget"
-            src="https://oc-cdn-public-eur.azureedge.net/livechatwidget/scripts/LiveChatBootstrapper.js"
-            data-app-id="35501611-0d9e-4449-a089-15db04dc1540" data-lcw-version="prod"
-            data-org-id="28ef5156-a985-ef11-ac1c-7c1e52504374" data-org-url="https://m-28ef5156-a985-ef11-ac1c-7c1e52504374.eu.omnichannelengagementhub.com"></script>`
+        // Add base tag to handle relative URLs but preserve original head structure
+        const baseUrl = new URL(url).origin;
+        
+        if (!htmlContent.includes('<base')) {
+          htmlContent = htmlContent.replace(
+            /<head([^>]*)>/i,
+            `<head$1>
+            <base href="${baseUrl}/">
+            <script id="Microsoft_Omnichannel_LCWidget"
+              src="https://oc-cdn-public-eur.azureedge.net/livechatwidget/scripts/LiveChatBootstrapper.js"
+              data-app-id="35501611-0d9e-4449-a089-15db04dc1540" data-lcw-version="prod"
+              data-org-id="28ef5156-a985-ef11-ac1c-7c1e52504374" data-org-url="https://m-28ef5156-a985-ef11-ac1c-7c1e52504374.eu.omnichannelengagementhub.com"></script>`
+          );
+        }
+        
+        // Fix all types of relative URLs while keeping the original structure
+        htmlContent = htmlContent.replace(/src="\/([^"]*?)"/g, `src="${baseUrl}/$1"`);
+        htmlContent = htmlContent.replace(/href="\/([^"]*?)"/g, `href="${baseUrl}/$1"`);
+        htmlContent = htmlContent.replace(/url\(\s*['"]?\/([^'")]+)['"]?\s*\)/g, `url("${baseUrl}/$1")`);
+        htmlContent = htmlContent.replace(/srcset="([^"]*)"/g, (match, srcset) => {
+          const fixedSrcset = srcset.replace(/\/([^,\s]+)/g, `${baseUrl}/$1`);
+          return `srcset="${fixedSrcset}"`;
+        });
+        htmlContent = htmlContent.replace(/data-src="\/([^"]*?)"/g, `data-src="${baseUrl}/$1"`);
+        
+        // Only remove potentially problematic external scripts but keep CSS and inline styles
+        htmlContent = htmlContent.replace(/<script\b[^>]*?\bsrc\s*=\s*[^>]*?><\/script>/gi, '');
+        htmlContent = htmlContent.replace(/<script\b[^>]*?>\s*(?:(?!<\/script>)[\s\S])*?\b(?:fetch|XMLHttpRequest|window\.location|document\.location)\b[\s\S]*?<\/script>/gi, '');
+        
+      } else if (response.data.data.content) {"${baseUrl}/">
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <script id="Microsoft_Omnichannel_LCWidget"
+          src="https://oc-cdn-public-eur.azureedge.net/livechatwidget/scripts/LiveChatBootstrapper.js"
+          data-app-id="35501611-0d9e-4449-a089-15db04dc1540" data-lcw-version="prod"
+          data-org-id="28ef5156-a985-ef11-ac1c-7c1e52504374" data-org-url="https://m-28ef5156-a985-ef11-ac1c-7c1e52504374.eu.omnichannelengagementhub.com"></script>`
+      );
+      
+      // Fix all types of URLs while preserving original styling
+      // Fix relative URLs that start with /
+      htmlContent = htmlContent.replace(/src="\/([^"]*?)"/g, `src="${baseUrl}/$1"`);
+      htmlContent = htmlContent.replace(/href="\/([^"]*?)"/g, `href="${baseUrl}/$1"`);
+      
+      // Fix CSS url() references
+      htmlContent = htmlContent.replace(/url\(\s*['"]?\/([^'")]+)['"]?\s*\)/g, `url("${baseUrl}/$1")`);
+      
+      // Fix srcset attributes for responsive images
+      htmlContent = htmlContent.replace(/srcset="([^"]*)"/g, (match, srcset) => {
+        const fixedSrcset = srcset.replace(/\/([^,\s]+)/g, `${baseUrl}/$1`);
+        return `srcset="${fixedSrcset}"`;
+      });
+      
+      // Fix data-src and other lazy loading attributes
+      htmlContent = htmlContent.replace(/data-src="\/([^"]*?)"/g, `data-src="${baseUrl}/$1"`);
+      
+      // Remove only problematic scripts but keep inline CSS and styles
+      htmlContent = htmlContent.replace(/<script\b[^>]*?\bsrc\s*=\s*[^>]*?><\/script>/gi, '');
+      htmlContent = htmlContent.replace(/<script\b[^>]*?>\s*(?:(?!<\/script>)[\s\S])*?\bfetch\b[\s\S]*?<\/script>/gi, '');
+      htmlContent = htmlContent.replace(/<script\b[^>]*?>\s*(?:(?!<\/script>)[\s\S])*?\bXMLHttpRequest\b[\s\S]*?<\/script>/gi, '');
+      
+      return { success: true, html: htmlContent };
+    }
+    
+    throw new Error('No valid HTML content found');
+    
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}`
         );
         
         // Remove any script tags that might cause issues
