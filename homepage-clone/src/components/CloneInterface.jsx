@@ -37,9 +37,19 @@ const CloneInterface = () => {
 
       const data = await response.json();
       if (data.previewHtml) {
-        setClonedHtml(data.previewHtml);
-        setShowInput(false);
-        setUrl('');
+        // Ensure HTML is properly handled for Vercel
+        const htmlContent = typeof data.previewHtml === 'string' ? data.previewHtml : data.html;
+        console.log('Received HTML content:', htmlContent?.substring(0, 200) + '...');
+        
+        if (htmlContent && htmlContent.includes('<html')) {
+          setClonedHtml(htmlContent);
+          setShowInput(false);
+          setUrl('');
+        } else {
+          throw new Error('Invalid HTML content received');
+        }
+      } else {
+        throw new Error('No HTML content in response');
       }
     } catch (err) {
       setError(err.message || 'Failed to clone website');
@@ -71,10 +81,10 @@ const CloneInterface = () => {
     }
   }, []);
 
-  // Full screen cloned website view
+  // Full screen cloned website view (render HTML directly for Vercel compatibility)
   if (clonedHtml && !showInput) {
     return (
-      <div className="relative w-full h-screen">
+      <div className="relative w-full min-h-screen bg-white">
         {/* Improved Back Button */}
         <button
           onClick={handleCloneAnother}
@@ -91,36 +101,12 @@ const CloneInterface = () => {
           <span>Back</span>
         </button>
         
-        {/* Full Screen Iframe - Better for Vercel deployment */}
-        <iframe
-          srcDoc={clonedHtml}
-          className="w-full h-full border-0"
-          title="Cloned website"
-          sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-top-navigation allow-modals"
-          loading="lazy"
-          style={{
-            colorScheme: 'normal',
-            background: 'white'
-          }}
-          onLoad={(e) => {
-            try {
-              const iframe = e.target;
-              const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
-              if (iframeDoc) {
-                const style = iframeDoc.createElement('style');
-                style.textContent = `
-                  body { 
-                    margin: 0 !important; 
-                    padding: 0 !important; 
-                    overflow-x: hidden !important;
-                  }
-                  * { box-sizing: border-box !important; }
-                `;
-                iframeDoc.head.appendChild(style);
-              }
-            } catch {
-              console.log('Could not access iframe content (CORS)');
-            }
+        {/* Render HTML directly - Works on Vercel */}
+        <div
+          className="w-full min-h-screen"
+          style={{ zIndex: 1 }}
+          dangerouslySetInnerHTML={{ 
+            __html: clonedHtml 
           }}
         />
       </div>

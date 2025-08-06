@@ -58,8 +58,9 @@ async function directHtmlFetch(url) {
 }
 
 module.exports = async function handler(req, res) {
-  // Ensure JSON response for Vercel (prevents plain text rendering)
-  res.setHeader('Content-Type', 'application/json');
+  // Ensure proper JSON response headers for Vercel
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-cache');
   // Enable CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -194,14 +195,17 @@ module.exports = async function handler(req, res) {
     }
 
     if (htmlContent) {
-      res.json({
+      // Ensure HTML content is properly handled
+      const responseData = {
         success: true,
         url: url,
         size: `${(htmlContent.length / 1024).toFixed(2)} KB`,
         status: "Successfully cloned",
         previewHtml: htmlContent,
         html: htmlContent
-      });
+      };
+      
+      res.status(200).json(responseData);
       console.log(`✅ Successfully cloned: ${url}`);
     } else {
       throw new Error("No HTML content received from Firecrawl API");
@@ -215,14 +219,16 @@ module.exports = async function handler(req, res) {
       const fallbackResult = await directHtmlFetch(url);
       
       if (fallbackResult.success) {
-        res.json({
+        const responseData = {
           success: true,
           url: url,
           size: `${(fallbackResult.html.length / 1024).toFixed(2)} KB`,
           status: "Successfully cloned (direct fetch)",
           previewHtml: fallbackResult.html,
           html: fallbackResult.html
-        });
+        };
+        
+        res.status(200).json(responseData);
         console.log(`✅ Successfully cloned via direct fetch: ${url}`);
         return;
       }
