@@ -10,25 +10,19 @@ async function directHtmlFetch(url) {
     
     const response = await axios.get(url, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Accept-Encoding': 'gzip, deflate, br',
-        'DNT': '1',
-        'Connection': 'keep-alive',
-        'Upgrade-Insecure-Requests': '1',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
       },
-      timeout: 15000,
-      maxRedirects: 10
+      timeout: 10000,
+      maxRedirects: 5
     });
 
     let htmlContent = response.data;
     
     if (htmlContent && htmlContent.includes('<html')) {
       const baseUrl = new URL(url).origin;
-      const fullUrl = new URL(url);
       
-      // Add base tag and enhancements while preserving original structure
+      // Add base tag and enhancements
       htmlContent = htmlContent.replace(
         /<head([^>]*)>/i,
         `<head$1>
@@ -38,30 +32,20 @@ async function directHtmlFetch(url) {
         <script id="Microsoft_Omnichannel_LCWidget"
           src="https://oc-cdn-public-eur.azureedge.net/livechatwidget/scripts/LiveChatBootstrapper.js"
           data-app-id="35501611-0d9e-4449-a089-15db04dc1540" data-lcw-version="prod"
-          data-org-id="28ef5156-a985-ef11-ac1c-7c1e52504374" data-org-url="https://m-28ef5156-a985-ef11-ac1c-7c1e52504374.eu.omnichannelengagementhub.com"></script>`
+          data-org-id="28ef5156-a985-ef11-ac1c-7c1e52504374" data-org-url="https://m-28ef5156-a985-ef11-ac1c-7c1e52504374.eu.omnichannelengagementhub.com"></script>
+        <style>
+          * { box-sizing: border-box; }
+          body { margin: 0; padding: 0; }
+          img { max-width: 100%; height: auto; }
+          .container, .wrapper { max-width: 100%; }
+        </style>`
       );
       
-      // Fix all types of URLs while preserving original styling
-      // Fix relative URLs that start with /
+      // Remove scripts and fix URLs
+      htmlContent = htmlContent.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
       htmlContent = htmlContent.replace(/src="\/([^"]*?)"/g, `src="${baseUrl}/$1"`);
       htmlContent = htmlContent.replace(/href="\/([^"]*?)"/g, `href="${baseUrl}/$1"`);
-      
-      // Fix CSS url() references
-      htmlContent = htmlContent.replace(/url\(\s*['"]?\/([^'")]+)['"]?\s*\)/g, `url("${baseUrl}/$1")`);
-      
-      // Fix srcset attributes for responsive images
-      htmlContent = htmlContent.replace(/srcset="([^"]*)"/g, (match, srcset) => {
-        const fixedSrcset = srcset.replace(/\/([^,\s]+)/g, `${baseUrl}/$1`);
-        return `srcset="${fixedSrcset}"`;
-      });
-      
-      // Fix data-src and other lazy loading attributes
-      htmlContent = htmlContent.replace(/data-src="\/([^"]*?)"/g, `data-src="${baseUrl}/$1"`);
-      
-      // Remove only problematic scripts but keep inline CSS and styles
-      htmlContent = htmlContent.replace(/<script\b[^>]*?\bsrc\s*=\s*[^>]*?><\/script>/gi, '');
-      htmlContent = htmlContent.replace(/<script\b[^>]*?>\s*(?:(?!<\/script>)[\s\S])*?\bfetch\b[\s\S]*?<\/script>/gi, '');
-      htmlContent = htmlContent.replace(/<script\b[^>]*?>\s*(?:(?!<\/script>)[\s\S])*?\bXMLHttpRequest\b[\s\S]*?<\/script>/gi, '');
+      htmlContent = htmlContent.replace(/url\(['"]?\/([^'")\s]*?)['"]?\)/g, `url('${baseUrl}/$1')`);
       
       return { success: true, html: htmlContent };
     }
@@ -74,9 +58,8 @@ async function directHtmlFetch(url) {
 }
 
 module.exports = async function handler(req, res) {
-  // Ensure proper JSON response headers for Vercel
-  res.setHeader('Content-Type', 'application/json; charset=utf-8');
-  res.setHeader('Cache-Control', 'no-cache');
+  // Ensure JSON response for Vercel (prevents plain text rendering)
+  res.setHeader('Content-Type', 'application/json');
   // Enable CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -106,17 +89,14 @@ module.exports = async function handler(req, res) {
         url: url,
         formats: ["html"],
         onlyMainContent: false,
-        includeHtml: true,
-        waitFor: 5000,
-        screenshot: false,
-        removeBase64Images: false
+        waitFor: 3000,
+        screenshot: false
       },
       {
         headers: {
           Authorization: `Bearer ${firecrawlApiKey}`,
           "Content-Type": "application/json"
-        },
-        timeout: 30000
+        }
       }
     );
 
@@ -124,37 +104,36 @@ module.exports = async function handler(req, res) {
     let htmlContent = null;
     if (response.data && response.data.data) {
       if (response.data.data.html) {
-        // Clean and enhance the HTML content while preserving original styling
+        // Clean and enhance the HTML content
         htmlContent = response.data.data.html;
         
-        // Add base tag to handle relative URLs but preserve original head structure
+        // Add base tag to handle relative URLs
         const baseUrl = new URL(url).origin;
+        htmlContent = htmlContent.replace(
+          '<head>',
+          `<head>
+          <base href="${baseUrl}/">
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <script id="Microsoft_Omnichannel_LCWidget"
+            src="https://oc-cdn-public-eur.azureedge.net/livechatwidget/scripts/LiveChatBootstrapper.js"
+            data-app-id="35501611-0d9e-4449-a089-15db04dc1540" data-lcw-version="prod"
+            data-org-id="28ef5156-a985-ef11-ac1c-7c1e52504374" data-org-url="https://m-28ef5156-a985-ef11-ac1c-7c1e52504374.eu.omnichannelengagementhub.com"></script>
+          <style>
+            * { box-sizing: border-box; }
+            body { margin: 0; padding: 0; overflow-x: hidden; }
+            img { max-width: 100%; height: auto; }
+            .container, .wrapper { max-width: 100%; }
+          </style>`
+        );
         
-        if (!htmlContent.includes('<base')) {
-          htmlContent = htmlContent.replace(
-            /<head([^>]*)>/i,
-            `<head$1>
-            <base href="${baseUrl}/">
-            <script id="Microsoft_Omnichannel_LCWidget"
-              src="https://oc-cdn-public-eur.azureedge.net/livechatwidget/scripts/LiveChatBootstrapper.js"
-              data-app-id="35501611-0d9e-4449-a089-15db04dc1540" data-lcw-version="prod"
-              data-org-id="28ef5156-a985-ef11-ac1c-7c1e52504374" data-org-url="https://m-28ef5156-a985-ef11-ac1c-7c1e52504374.eu.omnichannelengagementhub.com"></script>`
-          );
-        }
+        // Remove potentially problematic scripts
+        htmlContent = htmlContent.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
         
-        // Fix all types of relative URLs while keeping the original structure
+        // Fix relative URLs
         htmlContent = htmlContent.replace(/src="\/([^"]*?)"/g, `src="${baseUrl}/$1"`);
         htmlContent = htmlContent.replace(/href="\/([^"]*?)"/g, `href="${baseUrl}/$1"`);
-        htmlContent = htmlContent.replace(/url\(\s*['"]?\/([^'")]+)['"]?\s*\)/g, `url("${baseUrl}/$1")`);
-        htmlContent = htmlContent.replace(/srcset="([^"]*)"/g, (match, srcset) => {
-          const fixedSrcset = srcset.replace(/\/([^,\s]+)/g, `${baseUrl}/$1`);
-          return `srcset="${fixedSrcset}"`;
-        });
-        htmlContent = htmlContent.replace(/data-src="\/([^"]*?)"/g, `data-src="${baseUrl}/$1"`);
-        
-        // Only remove potentially problematic external scripts but keep CSS and inline styles
-        htmlContent = htmlContent.replace(/<script\b[^>]*?\bsrc\s*=\s*[^>]*?><\/script>/gi, '');
-        htmlContent = htmlContent.replace(/<script\b[^>]*?>\s*(?:(?!<\/script>)[\s\S])*?\b(?:fetch|XMLHttpRequest|window\.location|document\.location)\b[\s\S]*?<\/script>/gi, '');
+        htmlContent = htmlContent.replace(/url\(\/([^)]*?)\)/g, `url(${baseUrl}/$1)`);
         
       } else if (response.data.data.content) {
         // Convert markdown content to enhanced HTML
@@ -215,17 +194,14 @@ module.exports = async function handler(req, res) {
     }
 
     if (htmlContent) {
-      // Ensure HTML content is properly handled
-      const responseData = {
+      res.json({
         success: true,
         url: url,
         size: `${(htmlContent.length / 1024).toFixed(2)} KB`,
         status: "Successfully cloned",
         previewHtml: htmlContent,
         html: htmlContent
-      };
-      
-      res.status(200).json(responseData);
+      });
       console.log(`✅ Successfully cloned: ${url}`);
     } else {
       throw new Error("No HTML content received from Firecrawl API");
@@ -239,16 +215,14 @@ module.exports = async function handler(req, res) {
       const fallbackResult = await directHtmlFetch(url);
       
       if (fallbackResult.success) {
-        const responseData = {
+        res.json({
           success: true,
           url: url,
           size: `${(fallbackResult.html.length / 1024).toFixed(2)} KB`,
           status: "Successfully cloned (direct fetch)",
           previewHtml: fallbackResult.html,
           html: fallbackResult.html
-        };
-        
-        res.status(200).json(responseData);
+        });
         console.log(`✅ Successfully cloned via direct fetch: ${url}`);
         return;
       }
