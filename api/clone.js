@@ -58,89 +58,89 @@ async function directHtmlFetch(url) {
 }
 
 module.exports = async function handler(req, res) {
-  // Ensure JSON response for Vercel (prevents plain text rendering)
-  res.setHeader('Content-Type', 'application/json');
-  // Enable CORS
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-  if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
-  }
-
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
-  const { url } = req.body;
-
-  if (!url) {
-    return res.status(400).json({ error: 'URL is required' });
-  }
-
   try {
-    console.log(`🔄 Cloning: ${url}`);
-    
-    const response = await axios.post(
-      "https://api.firecrawl.dev/v0/scrape",
-      {
-        url: url,
-        formats: ["html"],
-        onlyMainContent: false,
-        waitFor: 3000,
-        screenshot: false
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${firecrawlApiKey}`,
-          "Content-Type": "application/json"
-        }
-      }
-    );
+    // Always set JSON headers and CORS
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-    // Handle both html and content formats from Firecrawl
-    let htmlContent = null;
-    if (response.data && response.data.data) {
-      if (response.data.data.html) {
-        // Clean and enhance the HTML content
-        htmlContent = response.data.data.html;
-        
-        // Add base tag to handle relative URLs
-        const baseUrl = new URL(url).origin;
-        htmlContent = htmlContent.replace(
-          '<head>',
-          `<head>
-          <base href="${baseUrl}/">
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <script id="Microsoft_Omnichannel_LCWidget"
-            src="https://oc-cdn-public-eur.azureedge.net/livechatwidget/scripts/LiveChatBootstrapper.js"
-            data-app-id="35501611-0d9e-4449-a089-15db04dc1540" data-lcw-version="prod"
-            data-org-id="28ef5156-a985-ef11-ac1c-7c1e52504374" data-org-url="https://m-28ef5156-a985-ef11-ac1c-7c1e52504374.eu.omnichannelengagementhub.com"></script>
-          <style>
-            * { box-sizing: border-box; }
-            body { margin: 0; padding: 0; overflow-x: hidden; }
-            img { max-width: 100%; height: auto; }
-            .container, .wrapper { max-width: 100%; }
-          </style>`
-        );
-        
-        // Remove potentially problematic scripts
-        htmlContent = htmlContent.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
-        
-        // Fix relative URLs
-        htmlContent = htmlContent.replace(/src="\/([^"]*?)"/g, `src="${baseUrl}/$1"`);
-        htmlContent = htmlContent.replace(/href="\/([^"]*?)"/g, `href="${baseUrl}/$1"`);
-        htmlContent = htmlContent.replace(/url\(\/([^)]*?)\)/g, `url(${baseUrl}/$1)`);
-        
-      } else if (response.data.data.content) {
-        // Convert markdown content to enhanced HTML
-        const content = response.data.data.content;
-        const baseUrl = new URL(url).origin;
-        
-        htmlContent = `<!DOCTYPE html>
+    if (req.method === 'OPTIONS') {
+      res.status(200).end();
+      return;
+    }
+
+    if (req.method !== 'POST') {
+      return res.status(405).json({ error: 'Method not allowed' });
+    }
+
+    const { url } = req.body;
+
+    if (!url) {
+      return res.status(400).json({ error: 'URL is required' });
+    }
+
+    try {
+      console.log(`🔄 Cloning: ${url}`);
+      
+      const response = await axios.post(
+        "https://api.firecrawl.dev/v0/scrape",
+        {
+          url: url,
+          formats: ["html"],
+          onlyMainContent: false,
+          waitFor: 3000,
+          screenshot: false
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${firecrawlApiKey}`,
+            "Content-Type": "application/json"
+          }
+        }
+      );
+
+      // Handle both html and content formats from Firecrawl
+      let htmlContent = null;
+      if (response.data && response.data.data) {
+        if (response.data.data.html) {
+          // Clean and enhance the HTML content
+          htmlContent = response.data.data.html;
+          
+          // Add base tag to handle relative URLs
+          const baseUrl = new URL(url).origin;
+          htmlContent = htmlContent.replace(
+            '<head>',
+            `<head>
+            <base href="${baseUrl}/">
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <script id="Microsoft_Omnichannel_LCWidget"
+              src="https://oc-cdn-public-eur.azureedge.net/livechatwidget/scripts/LiveChatBootstrapper.js"
+              data-app-id="35501611-0d9e-4449-a089-15db04dc1540" data-lcw-version="prod"
+              data-org-id="28ef5156-a985-ef11-ac1c-7c1e52504374" data-org-url="https://m-28ef5156-a985-ef11-ac1c-7c1e52504374.eu.omnichannelengagementhub.com"></script>
+            <style>
+              * { box-sizing: border-box; }
+              body { margin: 0; padding: 0; overflow-x: hidden; }
+              img { max-width: 100%; height: auto; }
+              .container, .wrapper { max-width: 100%; }
+            </style>`
+          );
+          
+          // Remove potentially problematic scripts
+          htmlContent = htmlContent.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+          
+          // Fix relative URLs
+          htmlContent = htmlContent.replace(/src="\/([^\"]*?)"/g, `src="${baseUrl}/$1"`);
+          htmlContent = htmlContent.replace(/href="\/([^\"]*?)"/g, `href="${baseUrl}/$1"`);
+          htmlContent = htmlContent.replace(/url\(\/([^)]*?)\)/g, `url(${baseUrl}/$1)`);
+          
+        } else if (response.data.data.content) {
+          // Convert markdown content to enhanced HTML
+          const content = response.data.data.content;
+          const baseUrl = new URL(url).origin;
+          
+          htmlContent = `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -190,50 +190,51 @@ module.exports = async function handler(req, res) {
     </div>
 </body>
 </html>`;
+        }
       }
-    }
 
-    if (htmlContent) {
-      res.json({
-        success: true,
-        url: url,
-        size: `${(htmlContent.length / 1024).toFixed(2)} KB`,
-        status: "Successfully cloned",
-        previewHtml: htmlContent,
-        html: htmlContent
-      });
-      console.log(`✅ Successfully cloned: ${url}`);
-    } else {
-      throw new Error("No HTML content received from Firecrawl API");
-    }
-
-  } catch (error) {
-    console.error("❌ Firecrawl failed, trying direct fetch:", error.message);
-    
-    // Fallback to direct HTML fetch
-    try {
-      const fallbackResult = await directHtmlFetch(url);
-      
-      if (fallbackResult.success) {
+      if (htmlContent) {
         res.json({
           success: true,
           url: url,
-          size: `${(fallbackResult.html.length / 1024).toFixed(2)} KB`,
-          status: "Successfully cloned (direct fetch)",
-          previewHtml: fallbackResult.html,
-          html: fallbackResult.html
+          size: `${(htmlContent.length / 1024).toFixed(2)} KB`,
+          status: "Successfully cloned",
+          previewHtml: htmlContent,
+          html: htmlContent
         });
-        console.log(`✅ Successfully cloned via direct fetch: ${url}`);
-        return;
+        console.log(`✅ Successfully cloned: ${url}`);
+      } else {
+        throw new Error("No HTML content received from Firecrawl API");
       }
-    } catch (fallbackError) {
-      console.error("❌ Direct fetch also failed:", fallbackError.message);
+
+    } catch (error) {
+      console.error("❌ Firecrawl failed, trying direct fetch:", error.message);
+      // Fallback to direct HTML fetch
+      try {
+        const fallbackResult = await directHtmlFetch(url);
+        if (fallbackResult.success) {
+          res.json({
+            success: true,
+            url: url,
+            size: `${(fallbackResult.html.length / 1024).toFixed(2)} KB`,
+            status: "Successfully cloned (direct fetch)",
+            previewHtml: fallbackResult.html,
+            html: fallbackResult.html
+          });
+          console.log(`✅ Successfully cloned via direct fetch: ${url}`);
+          return;
+        }
+      } catch (fallbackError) {
+        console.error("❌ Direct fetch also failed:", fallbackError.message);
+      }
+      // If both methods fail
+      res.status(500).json({ 
+        error: `Failed to clone website: ${error.message}`,
+        url: url
+      });
     }
-    
-    // If both methods fail
-    res.status(500).json({ 
-      error: `Failed to clone website: ${error.message}`,
-      url: url
-    });
+  } catch (err) {
+    // Top-level catch for any unexpected error
+    res.status(500).json({ error: 'Internal server error', details: err.message });
   }
 };

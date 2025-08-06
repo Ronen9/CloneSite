@@ -30,12 +30,20 @@ const CloneInterface = () => {
         body: JSON.stringify({ url: processedUrl }),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      let data;
+      try {
+        data = await response.json();
+      } catch (jsonErr) {
+        // If response is not valid JSON
+        setError('Server error: Invalid JSON response.');
+        setIsLoading(false);
+        return;
       }
 
-      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || `HTTP error! status: ${response.status}`);
+      }
+
       if (data.previewHtml) {
         setClonedHtml(data.previewHtml);
         setShowInput(false);
