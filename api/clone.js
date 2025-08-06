@@ -89,8 +89,10 @@ module.exports = async function handler(req, res) {
         onlyMainContent: false,
         waitFor: 3000,
         screenshot: false,
-        includeTags: ["a", "img", "h1", "h2", "h3", "h4", "h5", "h6", "p", "div", "span", "nav", "header", "footer", "section", "article"],
-        excludeTags: ["script", "style", "meta", "link"]
+        includeHtml: true,
+        includeRawHtml: true,
+        includeTags: ["a", "img", "h1", "h2", "h3", "h4", "h5", "h6", "p", "div", "span", "nav", "header", "footer", "section", "article", "body", "main"],
+        excludeTags: ["script", "noscript", "style"]
       });
       const response = await axios.post(
         "https://api.firecrawl.dev/v0/scrape",
@@ -100,8 +102,10 @@ module.exports = async function handler(req, res) {
           onlyMainContent: false,
           waitFor: 3000,
           screenshot: false,
-          includeTags: ["a", "img", "h1", "h2", "h3", "h4", "h5", "h6", "p", "div", "span", "nav", "header", "footer", "section", "article"],
-          excludeTags: ["script", "style", "meta", "link"]
+          includeHtml: true,
+          includeRawHtml: true,
+          includeTags: ["a", "img", "h1", "h2", "h3", "h4", "h5", "h6", "p", "div", "span", "nav", "header", "footer", "section", "article", "body", "main"],
+          excludeTags: ["script", "noscript", "style"]
         },
         {
           headers: {
@@ -144,59 +148,9 @@ module.exports = async function handler(req, res) {
           htmlContent = htmlContent.replace(/href="\/([^\"]*?)"/g, `href="${baseUrl}/$1"`);
           htmlContent = htmlContent.replace(/url\(\/([^)]*?)\)/g, `url(${baseUrl}/$1)`);
         } else if (response.data.data.content) {
-          // Convert markdown content to enhanced HTML
-          const content = response.data.data.content;
-          const baseUrl = new URL(url).origin;
-          htmlContent = `<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <base href="${baseUrl}/">
-    <title>Cloned Website</title>
-    <script id="Microsoft_Omnichannel_LCWidget"
-      src="https://oc-cdn-public-eur.azureedge.net/livechatwidget/scripts/LiveChatBootstrapper.js"
-      data-app-id="35501611-0d9e-4449-a089-15db04dc1540" data-lcw-version="prod"
-      data-org-id="28ef5156-a985-ef11-ac1c-7c1e52504374" data-org-url="https://m-28ef5156-a985-ef11-ac1c-7c1e52504374.eu.omnichannelengagementhub.com"></script>
-    <style>
-      * { margin: 0; padding: 0; box-sizing: border-box; }
-      body { 
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif; 
-        line-height: 1.6; 
-        color: #333; 
-        background: #fff;
-        padding: 2rem;
-      }
-      .container { max-width: 1200px; margin: 0 auto; }
-      h1 { font-size: 2.5rem; font-weight: 700; margin-bottom: 1rem; color: #1e293b; }
-      h2 { font-size: 2rem; font-weight: 600; margin: 2rem 0 1rem 0; color: #334155; }
-      h3 { font-size: 1.5rem; font-weight: 600; margin: 1.5rem 0 0.75rem 0; color: #475569; }
-      p { margin-bottom: 1rem; color: #64748b; font-size: 1.1rem; }
-      a { color: #2563eb; text-decoration: none; font-weight: 500; }
-      a:hover { color: #1d4ed8; text-decoration: underline; }
-      ul, ol { margin: 1rem 0; padding-left: 2rem; color: #64748b; }
-      li { margin: 0.5rem 0; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        ${content
-          .replace(/^# (.*$)/gm, '<h1>$1</h1>')
-          .replace(/^## (.*$)/gm, '<h2>$1</h2>')
-          .replace(/^### (.*$)/gm, '<h3>$1</h3>')
-          .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-          .replace(/\*(.*?)\*/g, '<em>$1</em>')
-          .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>')
-          .replace(/\n\n/g, '</p><p>')
-          .replace(/^(?!<[h|div])/, '<p>')
-          .replace(/(?<!>)$/, '</p>')
-          .replace(/<p><\/p>/g, '')
-          .replace(/<p>(<h[1-6]>)/g, '$1')
-          .replace(/(<\/h[1-6]>)<\/p>/g, '$1')
-        }
-    </div>
-</body>
-</html>`;
+          // If Firecrawl returns content instead of HTML, try direct fetch immediately
+          console.log("⚠️ Firecrawl returned content instead of HTML, trying direct fetch...");
+          throw new Error("Firecrawl returned text content instead of HTML");
         }
       }
 
