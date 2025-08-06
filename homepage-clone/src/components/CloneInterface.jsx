@@ -71,22 +71,57 @@ const CloneInterface = () => {
     }
   }, []);
 
-  // Full screen cloned website view (render HTML directly)
+  // Full screen cloned website view
   if (clonedHtml && !showInput) {
     return (
-      <div className="relative w-full min-h-screen bg-white">
-        {/* Simple Start Over Button */}
+      <div className="relative w-full h-screen">
+        {/* Improved Back Button */}
         <button
           onClick={handleCloneAnother}
-          className="fixed top-4 left-4 z-50 bg-white/90 hover:bg-white text-gray-800 px-4 py-2 rounded-lg shadow-lg transition-all duration-200 text-sm font-medium"
+          className="fixed top-4 left-4 flex items-center gap-1 px-2 py-1 rounded-full bg-white text-gray-800 font-medium shadow-lg border border-gray-200 hover:bg-gray-50 hover:scale-105 active:scale-95 transition-all duration-200 text-xs"
+          style={{
+            zIndex: 999999,
+            position: 'fixed',
+            boxShadow: '0 4px 12px 0 rgba(0,0,0,0.1)',
+          }}
         >
-          ← Start Over
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-2.5 h-2.5 text-blue-600">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+          </svg>
+          <span>Back</span>
         </button>
-        {/* Render the HTML as real HTML, not plain text */}
-        <div
-          className="w-full min-h-screen"
-          style={{ zIndex: 1 }}
-          dangerouslySetInnerHTML={{ __html: clonedHtml }}
+        
+        {/* Full Screen Iframe - Better for Vercel deployment */}
+        <iframe
+          srcDoc={clonedHtml}
+          className="w-full h-full border-0"
+          title="Cloned website"
+          sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-top-navigation allow-modals"
+          loading="lazy"
+          style={{
+            colorScheme: 'normal',
+            background: 'white'
+          }}
+          onLoad={(e) => {
+            try {
+              const iframe = e.target;
+              const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+              if (iframeDoc) {
+                const style = iframeDoc.createElement('style');
+                style.textContent = `
+                  body { 
+                    margin: 0 !important; 
+                    padding: 0 !important; 
+                    overflow-x: hidden !important;
+                  }
+                  * { box-sizing: border-box !important; }
+                `;
+                iframeDoc.head.appendChild(style);
+              }
+            } catch {
+              console.log('Could not access iframe content (CORS)');
+            }
+          }}
         />
       </div>
     );
