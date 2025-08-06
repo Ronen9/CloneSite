@@ -88,7 +88,9 @@ module.exports = async function handler(req, res) {
         formats: ["html"],
         onlyMainContent: false,
         waitFor: 3000,
-        screenshot: false
+        screenshot: false,
+        includeTags: ["a", "img", "h1", "h2", "h3", "h4", "h5", "h6", "p", "div", "span", "nav", "header", "footer", "section", "article"],
+        excludeTags: ["script", "style", "meta", "link"]
       });
       const response = await axios.post(
         "https://api.firecrawl.dev/v0/scrape",
@@ -97,7 +99,9 @@ module.exports = async function handler(req, res) {
           formats: ["html"],
           onlyMainContent: false,
           waitFor: 3000,
-          screenshot: false
+          screenshot: false,
+          includeTags: ["a", "img", "h1", "h2", "h3", "h4", "h5", "h6", "p", "div", "span", "nav", "header", "footer", "section", "article"],
+          excludeTags: ["script", "style", "meta", "link"]
         },
         {
           headers: {
