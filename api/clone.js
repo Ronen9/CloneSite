@@ -82,7 +82,14 @@ module.exports = async function handler(req, res) {
 
     try {
       console.log(`🔄 Cloning: ${url}`);
-      
+      // Log Firecrawl request
+      console.log('Firecrawl request payload:', {
+        url: url,
+        formats: ["html"],
+        onlyMainContent: false,
+        waitFor: 3000,
+        screenshot: false
+      });
       const response = await axios.post(
         "https://api.firecrawl.dev/v0/scrape",
         {
@@ -99,6 +106,7 @@ module.exports = async function handler(req, res) {
           }
         }
       );
+      console.log('Firecrawl response:', response.status, response.data);
 
       // Handle both html and content formats from Firecrawl
       let htmlContent = null;
@@ -106,7 +114,6 @@ module.exports = async function handler(req, res) {
         if (response.data.data.html) {
           // Clean and enhance the HTML content
           htmlContent = response.data.data.html;
-          
           // Add base tag to handle relative URLs
           const baseUrl = new URL(url).origin;
           htmlContent = htmlContent.replace(
@@ -126,20 +133,16 @@ module.exports = async function handler(req, res) {
               .container, .wrapper { max-width: 100%; }
             </style>`
           );
-          
           // Remove potentially problematic scripts
           htmlContent = htmlContent.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
-          
           // Fix relative URLs
           htmlContent = htmlContent.replace(/src="\/([^\"]*?)"/g, `src="${baseUrl}/$1"`);
           htmlContent = htmlContent.replace(/href="\/([^\"]*?)"/g, `href="${baseUrl}/$1"`);
           htmlContent = htmlContent.replace(/url\(\/([^)]*?)\)/g, `url(${baseUrl}/$1)`);
-          
         } else if (response.data.data.content) {
           // Convert markdown content to enhanced HTML
           const content = response.data.data.content;
           const baseUrl = new URL(url).origin;
-          
           htmlContent = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -208,10 +211,12 @@ module.exports = async function handler(req, res) {
       }
 
     } catch (error) {
-      console.error("❌ Firecrawl failed, trying direct fetch:", error.message);
+      console.error("❌ Firecrawl failed, trying direct fetch:", error.message, error.stack);
       // Fallback to direct HTML fetch
       try {
+        console.log('Attempting directHtmlFetch fallback for:', url);
         const fallbackResult = await directHtmlFetch(url);
+        console.log('Fallback result:', fallbackResult);
         if (fallbackResult.success) {
           res.json({
             success: true,
@@ -225,7 +230,7 @@ module.exports = async function handler(req, res) {
           return;
         }
       } catch (fallbackError) {
-        console.error("❌ Direct fetch also failed:", fallbackError.message);
+        console.error("❌ Direct fetch also failed:", fallbackError.message, fallbackError.stack);
       }
       // If both methods fail
       res.status(500).json({ 
