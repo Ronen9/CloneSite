@@ -10,10 +10,19 @@ async function directHtmlFetch(url) {
     
     const response = await axios.get(url, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9,tr;q=0.8',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache',
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'none',
+        'Sec-Fetch-User': '?1',
+        'Upgrade-Insecure-Requests': '1'
       },
-      timeout: 10000,
+      timeout: 15000,
       maxRedirects: 5
     });
 
@@ -148,9 +157,9 @@ module.exports = async function handler(req, res) {
           htmlContent = htmlContent.replace(/href="\/([^\"]*?)"/g, `href="${baseUrl}/$1"`);
           htmlContent = htmlContent.replace(/url\(\/([^)]*?)\)/g, `url(${baseUrl}/$1)`);
         } else if (response.data.data.content) {
-          // If Firecrawl returns content instead of HTML, try direct fetch immediately
-          console.log("⚠️ Firecrawl returned content instead of HTML, trying direct fetch...");
-          throw new Error("Firecrawl returned text content instead of HTML");
+          // If Firecrawl returns content instead of HTML, fall back immediately
+          console.log("⚠️ Firecrawl returned content instead of HTML, falling back to direct fetch...");
+          throw new Error("Firecrawl returned text content - using direct fetch fallback");
         }
       }
 
@@ -169,12 +178,12 @@ module.exports = async function handler(req, res) {
       }
 
     } catch (error) {
-      console.error("❌ Firecrawl failed, trying direct fetch:", error.message, error.stack);
+      console.error("❌ Firecrawl failed, trying direct fetch:", error.message);
       // Fallback to direct HTML fetch
       try {
-        console.log('Attempting directHtmlFetch fallback for:', url);
+        console.log('🔄 Attempting directHtmlFetch fallback for:', url);
         const fallbackResult = await directHtmlFetch(url);
-        console.log('Fallback result:', fallbackResult);
+        console.log('📋 Fallback result success:', fallbackResult.success);
         if (fallbackResult.success) {
           res.json({
             success: true,
@@ -186,13 +195,15 @@ module.exports = async function handler(req, res) {
           });
           console.log(`✅ Successfully cloned via direct fetch: ${url}`);
           return;
+        } else {
+          console.error("❌ Fallback failed with error:", fallbackResult.error);
         }
       } catch (fallbackError) {
-        console.error("❌ Direct fetch also failed:", fallbackError.message, fallbackError.stack);
+        console.error("❌ Direct fetch exception:", fallbackError.message);
       }
       // If both methods fail
       res.status(500).json({ 
-        error: `Failed to clone website: ${error.message}`,
+        error: `Failed to clone website. Firecrawl: ${error.message}. Direct fetch also failed.`,
         url: url
       });
     }
