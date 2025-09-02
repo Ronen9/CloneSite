@@ -142,6 +142,22 @@ html {
               radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.3) 0%, transparent 50%);
 }
 
+/* Fade in up animation */
+@keyframes fade-in-up {
+  0% {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.8s ease-out forwards;
+}
+
 /* Text selection styling */
 ::selection {
   background: rgba(168, 85, 247, 0.3);
