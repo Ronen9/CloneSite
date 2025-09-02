@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 // Simple Responsive Website Scraper Interface
 const CloneInterface = () => {
   const [url, setUrl] = useState('');
+  const [chatScript, setChatScript] = useState(''); // Add chat script state
   const [isLoading, setIsLoading] = useState(false);
   const [clonedHtml, setClonedHtml] = useState(null);
   const [error, setError] = useState(null);
@@ -27,8 +28,13 @@ const CloneInterface = () => {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ url: processedUrl }),
+        body: JSON.stringify({ 
+          url: processedUrl,
+          chatScript: chatScript.trim() || null // Send chat script if provided
+        }),
       });
+
+      console.log('🐛 DEBUG: Sent chatScript:', chatScript.trim() || 'null'); // Debug log
 
       let data;
       try {
@@ -61,23 +67,13 @@ const CloneInterface = () => {
     setClonedHtml(null);
     setShowInput(true);
     setError(null);
+    // Optionally clear chat script - or keep it for reuse
+    // setChatScript('');
   };
 
-  // Inject Microsoft Omnichannel chat widget on all pages (homepage and after scrape)
-  useEffect(() => {
-    // Prevent duplicate script injection
-    if (!document.getElementById('Microsoft_Omnichannel_LCWidget')) {
-      const script = document.createElement('script');
-      script.id = 'Microsoft_Omnichannel_LCWidget';
-      script.src = 'https://oc-cdn-public-eur.azureedge.net/livechatwidget/scripts/LiveChatBootstrapper.js';
-      script.setAttribute('data-app-id', '35501611-0d9e-4449-a089-15db04dc1540');
-      script.setAttribute('data-lcw-version', 'prod');
-      script.setAttribute('data-org-id', '28ef5156-a985-ef11-ac1c-7c1e52504374');
-      script.setAttribute('data-org-url', 'https://m-28ef5156-a985-ef11-ac1c-7c1e52504374.eu.omnichannelengagementhub.com');
-      script.async = true;
-      document.body.appendChild(script);
-    }
-  }, []);
+  // Removed default chat widget auto-injection: only user-supplied script (sent to backend) will appear in cloned HTML.
+  // This effect intentionally left empty to avoid unintended widget duplication.
+  useEffect(() => { /* no-op: default chat injection removed */ }, [showInput]);
 
   // Full screen cloned website view
   if (clonedHtml && !showInput) {
@@ -138,25 +134,42 @@ const CloneInterface = () => {
   // UI identical to https://website-scraper-lemon.vercel.app/
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-[#f8fafc] via-[#a8edea] to-[#fed6e3]">
-      <div className="rounded-3xl shadow-4xl flex flex-col items-center px-10 py-12 backdrop-blur-2xl bg-white/80 border-2 border-cyan-300" style={{ minWidth: 370, maxWidth: 440, width: '100%', boxShadow: '0 20px 60px 0 rgba(80,180,220,0.18)' }}>
-        <h1 className="text-4xl font-extrabold text-gray-800 text-center mb-4 leading-tight drop-shadow-lg tracking-tight">Website Background<br/>Scraper</h1>
-        <p className="text-gray-700 text-lg text-center mb-8">Enter any website URL or description to use as your background</p>
-        <form onSubmit={handleSubmit} className="w-full flex flex-col items-center gap-6">
+      <div className="rounded-3xl shadow-4xl flex flex-col items-center px-12 py-16 backdrop-blur-2xl bg-white/80 border-2 border-cyan-300" style={{ minWidth: 480, maxWidth: 560, width: '100%', boxShadow: '0 20px 60px 0 rgba(80,180,220,0.18)' }}>
+        <h1 className="text-4xl font-extrabold text-gray-800 text-center mb-6 leading-tight drop-shadow-lg tracking-tight">Website Background<br/>Scraper</h1>
+        <p className="text-gray-700 text-lg text-center mb-10 leading-relaxed">Enter any website URL or description to use as your background</p>
+        <form onSubmit={handleSubmit} className="w-full flex flex-col items-center gap-10">
           <input
             type="text"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             placeholder="Enter URL (e.g., apple.com) or description (e.g., 'netflix website')"
-            className="w-5/6 max-w-xs text-lg px-5 py-3 rounded-xl border-2 border-cyan-400 focus:border-cyan-600 focus:ring-2 focus:ring-cyan-200/30 outline-none transition-all duration-200 text-gray-700 placeholder-gray-400 bg-white/95 shadow-md"
+            className="w-4/5 text-lg px-6 py-5 rounded-xl border-2 border-cyan-400 focus:border-cyan-600 focus:ring-2 focus:ring-cyan-200/30 outline-none transition-all duration-200 text-gray-700 placeholder-gray-400 bg-white/95 shadow-md"
             disabled={isLoading}
             autoFocus
           />
-          <div className="h-10" />
+          
+          {/* Chat Script Input */}
+          <div className="w-4/5 space-y-4">
+            <label className="block text-base text-gray-600 font-medium">
+              Chat Widget Script (optional):
+            </label>
+            <textarea
+              value={chatScript}
+              onChange={(e) => setChatScript(e.target.value)}
+              placeholder='Paste your chat script here (e.g., <script id="chat-widget"...></script>)'
+              className="w-full text-sm px-5 py-5 rounded-xl border-2 border-cyan-300 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-200/30 outline-none transition-all duration-200 text-gray-700 placeholder-gray-400 bg-white/95 shadow-md font-mono h-28 resize-none leading-relaxed"
+              disabled={isLoading}
+            />
+            <p className="text-sm text-gray-500 leading-relaxed">
+              Leave empty to use default chat widget
+            </p>
+          </div>
+          
+          <div className="h-4" />
           <button
             type="submit"
             disabled={isLoading || !url.trim()}
-            className="w-1/2 py-2 rounded-full text-base font-extrabold text-white shadow-md transition-all duration-200 bg-gradient-to-r from-blue-600 to-purple-700 hover:from-blue-700 hover:to-purple-800 disabled:from-gray-300 disabled:to-gray-400 disabled:text-gray-200"
-            style={{marginTop: '0.5rem'}}
+            className="w-3/5 py-4 rounded-full text-lg font-extrabold text-white shadow-md transition-all duration-200 bg-gradient-to-r from-blue-600 to-purple-700 hover:from-blue-700 hover:to-purple-800 disabled:from-gray-300 disabled:to-gray-400 disabled:text-gray-200"
           >
             {isLoading ? (
               <span>Scraping...</span>
@@ -166,8 +179,8 @@ const CloneInterface = () => {
           </button>
         </form>
         {error && (
-          <div className="mt-6 bg-red-100 border border-red-300 rounded-2xl p-4 w-full text-center">
-            <p className="text-red-600 text-base">{error}</p>
+          <div className="mt-8 bg-red-100 border border-red-300 rounded-2xl p-5 w-full text-center">
+            <p className="text-red-600 text-base leading-relaxed">{error}</p>
           </div>
         )}
       </div>

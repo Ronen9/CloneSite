@@ -3,17 +3,15 @@ const axios = require('axios');
 
 const firecrawlApiKey = process.env.FIRECRAWL_API_KEY || "fc-0515511a88e4440292549c718ed2821a";
 
-// Helper function to get chat script to inject
+// Helper: only inject a chat script if user provided one (no default anymore)
 function getChatScriptToInject(userScript) {
   if (userScript && userScript.trim()) {
-    console.log('🐛 DEBUG: Using user-provided chat script:', userScript.substring(0, 100) + '...');
-    // Clean up any quotes around the user script
-    return userScript.trim().replace(/^["']|["']$/g, '');
-  } else {
-    console.log('🐛 DEBUG: Using default Microsoft Omnichannel chat script');
-    // Default Microsoft Omnichannel script
-    return `<script id="Microsoft_Omnichannel_LCWidget" src="https://oc-cdn-public-eur.azureedge.net/livechatwidget/scripts/LiveChatBootstrapper.js" data-app-id="7c304b59-4913-42ae-ad0a-c83ab25caca2" data-lcw-version="prod" data-org-id="12c3e93e-566f-ef11-a66d-000d3ade3054" data-org-url="https://m-12c3e93e-566f-ef11-a66d-000d3ade3054.eu.omnichannelengagementhub.com"></script>`;
+    const cleaned = userScript.trim().replace(/^['"]|['"]$/g, '');
+    console.log('🐛 DEBUG: Using user-provided chat script snippet:', cleaned.substring(0, 120) + '...');
+    return cleaned;
   }
+  console.log('ℹ️ INFO: No user chat script supplied – skipping chat widget injection');
+  return '';
 }
 
 // Direct HTML fetch fallback function

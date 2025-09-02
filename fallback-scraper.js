@@ -1,6 +1,17 @@
 const axios = require('axios');
 
-async function directHtmlFetch(url) {
+// Helper: only inject chat script if user provided one
+function getChatScriptToInject(userScript) {
+  if (userScript && userScript.trim()) {
+    const cleaned = userScript.trim();
+    console.log('🐛 DEBUG (FALLBACK): Using USER PROVIDED chat script snippet:', cleaned.substring(0, 120) + '...');
+    return cleaned;
+  }
+  console.log('ℹ️ INFO (FALLBACK): No chat script provided – skipping injection');
+  return '';
+}
+
+async function directHtmlFetch(url, chatScript) {
   try {
     console.log(`🔄 Direct fetch: ${url}`);
     
@@ -23,6 +34,7 @@ async function directHtmlFetch(url) {
     if (htmlContent && htmlContent.includes('<html')) {
       // Clean and enhance the HTML
       const baseUrl = new URL(url).origin;
+      const scriptToInject = getChatScriptToInject(chatScript);
       
       // Add base tag and enhancements
       htmlContent = htmlContent.replace(
@@ -31,10 +43,7 @@ async function directHtmlFetch(url) {
         <base href="${baseUrl}/">
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <script id="Microsoft_Omnichannel_LCWidget"
-          src="https://oc-cdn-public-eur.azureedge.net/livechatwidget/scripts/LiveChatBootstrapper.js"
-          data-app-id="35501611-0d9e-4449-a089-15db04dc1540" data-lcw-version="prod"
-          data-org-id="28ef5156-a985-ef11-ac1c-7c1e52504374" data-org-url="https://m-28ef5156-a985-ef11-ac1c-7c1e52504374.eu.omnichannelengagementhub.com"></script>
+        ${scriptToInject}
         <style>
           /* Preserve original styling while ensuring compatibility */
           * { box-sizing: border-box; }
@@ -58,10 +67,11 @@ async function directHtmlFetch(url) {
         </style>`
       );
       
-      // Remove potentially problematic scripts but keep essential ones
+      // Remove potentially problematic scripts but keep essential ones and chat widgets
       htmlContent = htmlContent.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, (match) => {
-        // Keep essential scripts (like those for CSS frameworks)
-        if (match.includes('css') || match.includes('style') || match.includes('font')) {
+        // Keep essential scripts (like those for CSS frameworks) and chat widgets
+        if (match.includes('css') || match.includes('style') || match.includes('font') || 
+            match.includes('chat') || match.includes('widget') || match.includes('omnichannel') || match.includes('livechat')) {
           return match;
         }
         return '';

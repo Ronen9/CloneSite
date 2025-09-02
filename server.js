@@ -11,9 +11,20 @@ const firecrawlApiKey = "fc-0515511a88e4440292549c718ed2821a";
 app.use(cors());
 app.use(express.json());
 
+// Helper: only inject user-provided chat script (no default fallback)
+function getChatScriptToInject(userScript) {
+  if (userScript && userScript.trim()) {
+    const cleaned = userScript.trim().replace(/^['"]|['"]$/g, '');
+    console.log('🐛 DEBUG: Using USER PROVIDED chat script snippet:', cleaned.substring(0, 120) + '...');
+    return cleaned;
+  }
+  console.log('ℹ️ INFO: No chat script provided – none will be injected');
+  return '';
+}
+
 // Clone website endpoint
 app.post('/clone', async (req, res) => {
-  const { url } = req.body;
+  const { url, chatScript } = req.body;
 
   if (!url) {
     return res.status(400).json({ error: 'URL is required' });
@@ -21,6 +32,7 @@ app.post('/clone', async (req, res) => {
 
   try {
     console.log(`🔄 Cloning: ${url}`);
+    console.log('🐛 DEBUG: Received chatScript:', chatScript ? 'PROVIDED' : 'NULL'); // Debug log
     
     const response = await axios.post(
       "https://api.firecrawl.dev/v0/scrape",
@@ -50,10 +62,13 @@ app.post('/clone', async (req, res) => {
         htmlContent = response.data.data.html;
         
         // Add base tag to handle relative URLs and improve CSS loading
+        const baseUrl = new URL(url).origin;
+        const scriptToInject = getChatScriptToInject(chatScript);
+        
         htmlContent = htmlContent.replace(
           '<head>',
           `<head>
-          <base href="${new URL(url).origin}/">
+          <base href="${baseUrl}/">
           <meta charset="UTF-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <style>
@@ -66,14 +81,11 @@ app.post('/clone', async (req, res) => {
             /* Ensure fonts load properly */
             body, * { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
           </style>
-          <script id="Microsoft_Omnichannel_LCWidget"
-            src="https://oc-cdn-public-eur.azureedge.net/livechatwidget/scripts/LiveChatBootstrapper.js"
-            data-app-id="35501611-0d9e-4449-a089-15db04dc1540" data-lcw-version="prod"
-            data-org-id="28ef5156-a985-ef11-ac1c-7c1e52504374" data-org-url="https://m-28ef5156-a985-ef11-ac1c-7c1e52504374.eu.omnichannelengagementhub.com"></script>`
+          ${scriptToInject}`
         );
         
-        // Remove any script tags that might cause issues
-        htmlContent = htmlContent.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+        // Remove any script tags that might cause issues but preserve chat widgets
+        htmlContent = htmlContent.replace(/<script\b(?![^>]*(?:chat|widget|omnichannel|livechat))[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
         
         // Fix relative image and CSS URLs
         htmlContent = htmlContent.replace(/src="\/([^"]*?)"/g, `src="${new URL(url).origin}/$1"`);
@@ -83,6 +95,8 @@ app.post('/clone', async (req, res) => {
       } else if (response.data.data.content) {
         // Convert markdown content to enhanced HTML structure
         const content = response.data.data.content;
+        const baseUrl = new URL(url).origin;
+        const scriptToInject = getChatScriptToInject(chatScript);
         
         // Enhanced HTML template that looks more like a real website
         htmlContent = `<!DOCTYPE html>
@@ -91,10 +105,7 @@ app.post('/clone', async (req, res) => {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cloned Website</title>
-    <script id="Microsoft_Omnichannel_LCWidget"
-      src="https://oc-cdn-public-eur.azureedge.net/livechatwidget/scripts/LiveChatBootstrapper.js"
-      data-app-id="35501611-0d9e-4449-a089-15db04dc1540" data-lcw-version="prod"
-      data-org-id="28ef5156-a985-ef11-ac1c-7c1e52504374" data-org-url="https://m-28ef5156-a985-ef11-ac1c-7c1e52504374.eu.omnichannelengagementhub.com"></script>
+    ${scriptToInject}
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
       body { 
@@ -297,7 +308,7 @@ app.post('/clone', async (req, res) => {
     
     // Fallback to direct HTML fetch
     try {
-      const fallbackResult = await directHtmlFetch(url);
+      const fallbackResult = await directHtmlFetch(url, chatScript);
       
       if (fallbackResult.success) {
         res.json({
