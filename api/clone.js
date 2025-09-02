@@ -3,8 +3,21 @@ const axios = require('axios');
 
 const firecrawlApiKey = process.env.FIRECRAWL_API_KEY || "fc-0515511a88e4440292549c718ed2821a";
 
+// Helper function to get chat script to inject
+function getChatScriptToInject(userScript) {
+  if (userScript && userScript.trim()) {
+    console.log('🐛 DEBUG: Using user-provided chat script:', userScript.substring(0, 100) + '...');
+    // Clean up any quotes around the user script
+    return userScript.trim().replace(/^["']|["']$/g, '');
+  } else {
+    console.log('🐛 DEBUG: Using default Microsoft Omnichannel chat script');
+    // Default Microsoft Omnichannel script
+    return `<script id="Microsoft_Omnichannel_LCWidget" src="https://oc-cdn-public-eur.azureedge.net/livechatwidget/scripts/LiveChatBootstrapper.js" data-app-id="7c304b59-4913-42ae-ad0a-c83ab25caca2" data-lcw-version="prod" data-org-id="12c3e93e-566f-ef11-a66d-000d3ade3054" data-org-url="https://m-12c3e93e-566f-ef11-a66d-000d3ade3054.eu.omnichannelengagementhub.com"></script>`;
+  }
+}
+
 // Direct HTML fetch fallback function
-async function directHtmlFetch(url) {
+async function directHtmlFetch(url, chatScript) {
   try {
     console.log(`🔄 Direct fetch: ${url}`);
     
@@ -30,6 +43,7 @@ async function directHtmlFetch(url) {
     
     if (htmlContent && htmlContent.includes('<html')) {
       const baseUrl = new URL(url).origin;
+      const scriptToInject = getChatScriptToInject(chatScript);
       
       // Add base tag and enhancements
       htmlContent = htmlContent.replace(
@@ -38,10 +52,7 @@ async function directHtmlFetch(url) {
         <base href="${baseUrl}/">
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <script id="Microsoft_Omnichannel_LCWidget"
-          src="https://oc-cdn-public-eur.azureedge.net/livechatwidget/scripts/LiveChatBootstrapper.js"
-          data-app-id="35501611-0d9e-4449-a089-15db04dc1540" data-lcw-version="prod"
-          data-org-id="28ef5156-a985-ef11-ac1c-7c1e52504374" data-org-url="https://m-28ef5156-a985-ef11-ac1c-7c1e52504374.eu.omnichannelengagementhub.com"></script>
+        ${scriptToInject}
         <style>
           * { box-sizing: border-box; }
           body { margin: 0; padding: 0; }
@@ -83,7 +94,7 @@ module.exports = async function handler(req, res) {
       return res.status(405).json({ error: 'Method not allowed' });
     }
 
-    const { url } = req.body;
+    const { url, chatScript } = req.body;
 
     if (!url) {
       return res.status(400).json({ error: 'URL is required' });
@@ -133,16 +144,18 @@ module.exports = async function handler(req, res) {
           htmlContent = response.data.data.html;
           // Add base tag to handle relative URLs
           const baseUrl = new URL(url).origin;
+          const scriptToInject = getChatScriptToInject(chatScript);
+          
+          console.log('🐛 DEBUG: Script to inject:', scriptToInject.substring(0, 200) + '...');
+          console.log('🐛 DEBUG: HTML content length before injection:', htmlContent.length);
+          
           htmlContent = htmlContent.replace(
             '<head>',
             `<head>
             <base href="${baseUrl}/">
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <script id="Microsoft_Omnichannel_LCWidget"
-              src="https://oc-cdn-public-eur.azureedge.net/livechatwidget/scripts/LiveChatBootstrapper.js"
-              data-app-id="35501611-0d9e-4449-a089-15db04dc1540" data-lcw-version="prod"
-              data-org-id="28ef5156-a985-ef11-ac1c-7c1e52504374" data-org-url="https://m-28ef5156-a985-ef11-ac1c-7c1e52504374.eu.omnichannelengagementhub.com"></script>
+            ${scriptToInject}
             <style>
               * { box-sizing: border-box; }
               body { margin: 0; padding: 0; overflow-x: hidden; }
@@ -150,8 +163,11 @@ module.exports = async function handler(req, res) {
               .container, .wrapper { max-width: 100%; }
             </style>`
           );
-          // Remove potentially problematic scripts
-          htmlContent = htmlContent.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+          // Remove potentially problematic scripts but preserve chat widgets
+          console.log('🐛 DEBUG: HTML content length before script removal:', htmlContent.length);
+          htmlContent = htmlContent.replace(/<script\b(?![^>]*(?:chat|widget|omnichannel|livechat))[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+          console.log('🐛 DEBUG: HTML content length after script removal:', htmlContent.length);
+          console.log('🐛 DEBUG: Chat script still present:', htmlContent.includes('Microsoft_Omnichannel_LCWidget') || htmlContent.includes('livechat') || htmlContent.includes('widget'));
           // Fix relative URLs
           htmlContent = htmlContent.replace(/src="\/([^\"]*?)"/g, `src="${baseUrl}/$1"`);
           htmlContent = htmlContent.replace(/href="\/([^\"]*?)"/g, `href="${baseUrl}/$1"`);
@@ -182,7 +198,7 @@ module.exports = async function handler(req, res) {
       // Fallback to direct HTML fetch
       try {
         console.log('🔄 Attempting directHtmlFetch fallback for:', url);
-        const fallbackResult = await directHtmlFetch(url);
+        const fallbackResult = await directHtmlFetch(url, chatScript);
         console.log('📋 Fallback result success:', fallbackResult.success);
         if (fallbackResult.success) {
           res.json({
