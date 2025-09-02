@@ -61,8 +61,8 @@ async function directHtmlFetch(url, chatScript) {
         </style>`
       );
       
-      // Remove scripts and fix URLs
-      htmlContent = htmlContent.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+      // Remove potentially problematic scripts but preserve chat widgets and essential scripts
+      htmlContent = htmlContent.replace(/<script\b(?![^>]*(?:chat|widget|omnichannel|livechat|jquery|bootstrap|cdn|font|css))[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
       htmlContent = htmlContent.replace(/src="\/([^"]*?)"/g, `src="${baseUrl}/$1"`);
       htmlContent = htmlContent.replace(/href="\/([^"]*?)"/g, `href="${baseUrl}/$1"`);
       htmlContent = htmlContent.replace(/url\(['"]?\/([^'")\s]*?)['"]?\)/g, `url('${baseUrl}/$1')`);
@@ -149,6 +149,12 @@ module.exports = async function handler(req, res) {
           console.log('🐛 DEBUG: Script to inject:', scriptToInject.substring(0, 200) + '...');
           console.log('🐛 DEBUG: HTML content length before injection:', htmlContent.length);
           
+          // First, remove potentially problematic scripts but preserve chat widgets and essential scripts
+          console.log('🐛 DEBUG: HTML content length before script removal:', htmlContent.length);
+          htmlContent = htmlContent.replace(/<script\b(?![^>]*(?:chat|widget|omnichannel|livechat|jquery|bootstrap|cdn|font|css))[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+          console.log('🐛 DEBUG: HTML content length after script removal:', htmlContent.length);
+          
+          // Then inject the chat script into the head
           htmlContent = htmlContent.replace(
             '<head>',
             `<head>
@@ -163,10 +169,7 @@ module.exports = async function handler(req, res) {
               .container, .wrapper { max-width: 100%; }
             </style>`
           );
-          // Remove potentially problematic scripts but preserve chat widgets
-          console.log('🐛 DEBUG: HTML content length before script removal:', htmlContent.length);
-          htmlContent = htmlContent.replace(/<script\b(?![^>]*(?:chat|widget|omnichannel|livechat))[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
-          console.log('🐛 DEBUG: HTML content length after script removal:', htmlContent.length);
+          
           console.log('🐛 DEBUG: Chat script still present:', htmlContent.includes('Microsoft_Omnichannel_LCWidget') || htmlContent.includes('livechat') || htmlContent.includes('widget'));
           // Fix relative URLs
           htmlContent = htmlContent.replace(/src="\/([^\"]*?)"/g, `src="${baseUrl}/$1"`);
