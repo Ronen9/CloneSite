@@ -39,7 +39,7 @@ const CloneInterface = () => {
       let data;
       try {
         data = await response.json();
-      } catch (jsonErr) {
+      } catch {
         // If response is not valid JSON
         setError('Server error: Invalid JSON response.');
         setIsLoading(false);

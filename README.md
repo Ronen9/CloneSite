@@ -1,5 +1,7 @@
 # 🌐 CloneSite - Full-Screen Website Cloner
 
+> **📌 Important**: This repository IS your CloneSite project. Any changes you commit here will directly apply to your CloneSite application. See [CONTRIBUTING.md](CONTRIBUTING.md) for details on how changes work.
+
 A beautiful, full-screen website cloning tool that captures and renders websites exactly as they appear, with a minimal Google-style interface.
 
 ![CloneSite Demo](https://img.shields.io/badge/Status-Production%20Ready-brightgreen)
