@@ -54,6 +54,8 @@ coverage/
 # Temporary files
 tmp/
 temp/
+temp_backup/
+nul
 
 # Generated files
 homepage-clone.html
@@ -71,6 +73,9 @@ conversion-instructions.md
 .next/
 out/
 node_modules
+
+# Additional build artifacts
+homepage-clone/dist/
 
 # Claude Code local settings
 .claude/settings.local.json
