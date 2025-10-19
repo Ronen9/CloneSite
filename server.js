@@ -1,15 +1,21 @@
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
+const path = require('path');
 const { directHtmlFetch } = require('./fallback-scraper');
 
 const app = express();
-const PORT = 3003;
+const PORT = process.env.PORT || 3003;
 
-const firecrawlApiKey = "fc-0515511a88e4440292549c718ed2821a";
+const firecrawlApiKey = process.env.FIRECRAWL_API_KEY || "fc-0515511a88e4440292549c718ed2821a";
 
 app.use(cors());
 app.use(express.json());
+
+// Serve static files from the built frontend (for production)
+if (process.env.NODE_ENV === 'production') {
+  app.use(express.static(path.join(__dirname, 'homepage-clone/dist')));
+}
 
 // Helper: only inject user-provided chat script (no default fallback)
 function getChatScriptToInject(userScript) {
@@ -23,7 +29,8 @@ function getChatScriptToInject(userScript) {
 }
 
 // Clone website endpoint
-app.post('/clone', async (req, res) => {
+// Support both legacy "/clone" and preferred REST namespace "/api/clone"
+app.post(['/clone', '/api/clone'], async (req, res) => {
   const { url, chatScript } = req.body;
 
   if (!url) {
@@ -72,20 +79,35 @@ app.post('/clone', async (req, res) => {
           <meta charset="UTF-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <style>
+            /* CORS Font Fallback - Prevent font loading errors */
+            @font-face {
+              font-family: 'Heebo';
+              font-style: normal;
+              font-weight: 300 900;
+              font-display: swap;
+              src: local('Arial'), local('Helvetica'), local('sans-serif');
+            }
+
+            /* Universal font fallback for Hebrew and other languages */
+            * {
+              font-family: 'Heebo', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto',
+                           'Helvetica Neue', Arial, 'Noto Sans', sans-serif,
+                           'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
+                           'Noto Color Emoji' !important;
+            }
+
             /* Ensure all elements are visible and properly styled */
             * { box-sizing: border-box; }
             body { margin: 0; padding: 0; overflow-x: hidden; }
             img { max-width: 100%; height: auto; }
             /* Fix any broken layouts */
             .container, .wrapper { max-width: 100%; }
-            /* Ensure fonts load properly */
-            body, * { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
           </style>
           ${scriptToInject}`
         );
         
         // Remove any script tags that might cause issues but preserve chat widgets
-        htmlContent = htmlContent.replace(/<script\b(?![^>]*(?:chat|widget|omnichannel|livechat))[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+        htmlContent = htmlContent.replace(/<script\b(?![^>]*(?:chat|widget|omnichannel|livechat|jquery|bootstrap))[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
         
         // Fix relative image and CSS URLs
         htmlContent = htmlContent.replace(/src="\/([^"]*?)"/g, `src="${new URL(url).origin}/$1"`);
@@ -339,6 +361,13 @@ app.post('/clone', async (req, res) => {
 app.get('/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
+
+// Serve index.html for all other routes (SPA support for production)
+if (process.env.NODE_ENV === 'production') {
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'homepage-clone/dist/index.html'));
+  });
+}
 
 app.listen(PORT, () => {
   console.log(`🚀 Clone API server running on http://localhost:${PORT}`);

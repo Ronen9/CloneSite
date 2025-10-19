@@ -1,15 +1,20 @@
 {
   "name": "homepage-cloner",
   "version": "1.0.0",
-  "description": "Clone homepages using Firecrawl API and convert to React components",
-  "main": "clone-homepage.js",
+  "description": "Clone homepages using Firecrawl API with TypeScript React frontend",
+  "main": "server.js",
   "scripts": {
     "clone": "node clone-homepage.js",
     "server": "node server.js",
     "dev": "concurrently \"npm run server\" \"cd homepage-clone && npm run dev\"",
     "build": "cd homepage-clone && npm install && npm run build",
-    "vercel-build": "cd homepage-clone && npm install && npm run build",
-    "start": "cd homepage-clone && npm start"
+    "start": "NODE_ENV=production node server.js",
+    "azure:build": "npm install && cd homepage-clone && npm install && npm run build",
+    "vercel-build": "cd homepage-clone && npm install && npm run build"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
   },
   "dependencies": {
     "axios": "^1.6.0",
@@ -17,7 +22,7 @@
     "cors": "^2.8.5",
     "concurrently": "^7.6.0"
   },
-  "keywords": ["firecrawl", "homepage", "clone", "react", "tailwind"],
+  "keywords": ["firecrawl", "homepage", "clone", "react", "typescript", "tailwind", "azure"],
   "author": "",
   "license": "MIT"
 }

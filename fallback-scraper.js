@@ -45,20 +45,37 @@ async function directHtmlFetch(url, chatScript) {
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         ${scriptToInject}
         <style>
+          /* CORS Font Fallback - Prevent font loading errors */
+          @font-face {
+            font-family: 'Heebo';
+            font-style: normal;
+            font-weight: 300 900;
+            font-display: swap;
+            src: local('Arial'), local('Helvetica'), local('sans-serif');
+          }
+
+          /* Universal font fallback for Hebrew and other languages */
+          * {
+            font-family: 'Heebo', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto',
+                         'Helvetica Neue', Arial, 'Noto Sans', sans-serif,
+                         'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
+                         'Noto Color Emoji' !important;
+          }
+
           /* Preserve original styling while ensuring compatibility */
           * { box-sizing: border-box; }
           body { margin: 0; padding: 0; }
           img { max-width: 100%; height: auto; }
-          
+
           /* Fix common layout issues */
           .container, .wrapper, .main-content { max-width: 100%; }
-          
+
           /* Ensure proper text rendering */
-          body, * { 
+          body, * {
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
           }
-          
+
           /* Handle responsive design */
           @media (max-width: 768px) {
             body { font-size: 14px; }
