@@ -64,7 +64,7 @@ async function directHtmlFetch(url, chatScript) {
       htmlContent = htmlContent.replace(/src="\/([^"]*?)"/g, `src="${baseUrl}/$1"`);
       htmlContent = htmlContent.replace(/href="\/([^"]*?)"/g, `href="${baseUrl}/$1"`);
       htmlContent = htmlContent.replace(/url\(['"]?\/([^'")\s]*?)['"]?\)/g, `url('${baseUrl}/$1')`);
-      
+
       return { success: true, html: htmlContent };
     }
     
@@ -218,9 +218,9 @@ module.exports = async function handler(req, res) {
       } catch (fallbackError) {
         console.error("❌ Direct fetch exception:", fallbackError.message);
       }
-      // If both methods fail
+      // If all methods fail
       res.status(500).json({ 
-        error: `Failed to clone website. Firecrawl: ${error.message}. Direct fetch also failed.`,
+        error: `Failed to clone website. Firecrawl: ${error.message}. Direct fetch fallback also failed.`,
         url: url
       });
     }

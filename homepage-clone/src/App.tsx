@@ -5,6 +5,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { SplashCursor } from '@/components/ui/splash-cursor'
 import { Globe, Code, Sparkle, WarningCircle } from '@phosphor-icons/react'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -87,6 +88,7 @@ function App() {
 
   return (
     <div className="min-h-screen relative overflow-hidden">
+      <SplashCursor />
       <div 
         className="absolute inset-0 bg-gradient-to-br from-violet-100/30 via-indigo-50/30 to-rose-100/30 pointer-events-none z-0"
         style={{

@@ -27,7 +27,6 @@ function getChatScriptToInject(userScript) {
   console.log('ℹ️ INFO: No chat script provided – none will be injected');
   return '';
 }
-
 // Clone website endpoint
 // Support both legacy "/clone" and preferred REST namespace "/api/clone"
 app.post(['/clone', '/api/clone'], async (req, res) => {
@@ -321,40 +320,41 @@ app.post(['/clone', '/api/clone'], async (req, res) => {
         html: htmlContent
       });
       console.log(`✅ Successfully cloned: ${url}`);
+      return;
     } else {
       throw new Error("No HTML content received from Firecrawl API");
     }
 
   } catch (error) {
-    console.error("❌ Firecrawl failed, trying direct fetch:", error.message);
-    
-    // Fallback to direct HTML fetch
-    try {
-      const fallbackResult = await directHtmlFetch(url, chatScript);
-      
-      if (fallbackResult.success) {
-        res.json({
-          success: true,
-          url: url,
-          size: `${(fallbackResult.html.length / 1024).toFixed(2)} KB`,
-          status: "Successfully cloned (direct fetch)",
-          previewHtml: fallbackResult.html,
-          html: fallbackResult.html,
-          method: fallbackResult.method
-        });
-        console.log(`✅ Successfully cloned via direct fetch: ${url}`);
-        return;
-      }
-    } catch (fallbackError) {
-      console.error("❌ Direct fetch also failed:", fallbackError.message);
-    }
-    
-    // If both methods fail
-    res.status(500).json({ 
-      error: `Failed to clone website: ${error.message}`,
-      url: url
-    });
+    console.error("❌ Firecrawl HTML failed:", error.message);
   }
+  
+  // STEP 2: Try direct HTML fetch
+  try {
+    console.log('🔄 Attempting direct HTML fetch fallback...');
+    const fallbackResult = await directHtmlFetch(url, chatScript);
+    
+    if (fallbackResult.success) {
+      res.json({
+        success: true,
+        url: url,
+        size: `${(fallbackResult.html.length / 1024).toFixed(2)} KB`,
+        status: "Successfully cloned (direct fetch)",
+        previewHtml: fallbackResult.html,
+        html: fallbackResult.html
+      });
+      console.log(`✅ Successfully cloned via direct fetch: ${url}`);
+      return;
+    }
+  } catch (fallbackError) {
+    console.error("❌ Direct fetch also failed:", fallbackError.message);
+  }
+  
+  // All methods failed
+  res.status(500).json({ 
+    error: `Failed to clone website. Firecrawl HTML scraping and direct fetch both failed.`,
+    url: url
+  });
 });
 
 // Health check endpoint
