@@ -35,10 +35,13 @@ module.exports = async function handler(req, res) {
     // Validate environment variable
     if (!apiKey) {
       console.error('Missing FIRECRAWL_API_KEY environment variable');
-      return res.status(500).json({ 
-        error: 'Server configuration error. Missing FIRECRAWL_API_KEY.' 
+      return res.status(500).json({
+        error: 'Server configuration error. Missing FIRECRAWL_API_KEY.'
       });
     }
+
+    console.log('Firecrawl API key present:', apiKey ? `Yes (${apiKey.substring(0, 10)}...)` : 'No');
+    console.log('Request body:', JSON.stringify(req.body, null, 2));
 
     // Get request parameters
     const { url, type = 'scrape', maxPages = 1 } = req.body;
