@@ -49,12 +49,15 @@ export function VoiceChat() {
   
   // Session state
   const [isSessionActive, setIsSessionActive] = useState(false)
+  const [isSessionEnded, setIsSessionEnded] = useState(false)
   const [transcript, setTranscript] = useState<Message[]>([])
   
-  // WebRTC refs (to be implemented in Stage 5)
+  // WebRTC refs
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null)
   const dataChannelRef = useRef<RTCDataChannel | null>(null)
   const audioElementRef = useRef<HTMLAudioElement | null>(null)
+  const currentBetiResponse = useRef<string>('')
+  const transcriptContainerRef = useRef<HTMLDivElement | null>(null)
 
   // Fetch credits when strict mode is enabled
   useEffect(() => {
@@ -142,14 +145,314 @@ END OF WEBSITE CONTENT`
     setTranscript([])
   }
 
+  const addToTranscript = (role: 'user' | 'beti', content: string) => {
+    setTranscript((prev) => [...prev, { role, content, timestamp: new Date() }])
+    
+    // Auto-scroll to bottom after adding message
+    setTimeout(() => {
+      if (transcriptContainerRef.current) {
+        transcriptContainerRef.current.scrollTop = transcriptContainerRef.current.scrollHeight
+      }
+    }, 100)
+  }
+
+  const buildSystemInstructions = (): string => {
+    let languageInstruction = ''
+    if (language === 'hebrew') {
+      languageInstruction = 'Always respond in Hebrew (עברית). You are fluent in Hebrew and should communicate naturally in Hebrew.'
+    } else if (language === 'english') {
+      languageInstruction = 'Always respond in English.'
+    } else if (language === 'auto') {
+      languageInstruction = 'Automatically detect and respond in the same language the user speaks. If they speak Hebrew, respond in Hebrew. If they speak English, respond in English. If they speak Spanish, respond in Spanish. Match the user\'s language naturally.'
+    }
+
+    let strictModeInstruction = ''
+    if (strictMode) {
+      strictModeInstruction = `
+STRICT MODE - KNOWLEDGE BASE ONLY:
+- You MUST ONLY use information from the knowledge base provided above
+- DO NOT use any external knowledge, general knowledge, or information from the internet
+- If the answer is not in the knowledge base, respond with: "I don't have that specific information in my knowledge base. Let me connect you with a human representative who can help."
+- Never make assumptions or provide information not explicitly stated in the knowledge base
+- This is critical: ONLY answer from the knowledge base, nothing else`
+    } else {
+      strictModeInstruction = `
+FLEXIBLE MODE:
+- Primarily use the knowledge base above for company-specific information
+- You can supplement with general knowledge when appropriate
+- If information is not in the knowledge base but you know the answer from general knowledge, you may provide it
+- Always prioritize knowledge base information for company-specific questions`
+    }
+
+    return `You are a helpful and knowledgeable customer service assistant.
+
+${languageInstruction}
+
+KNOWLEDGE BASE:
+${knowledgeBase}
+
+${strictModeInstruction}
+
+INSTRUCTIONS:
+- Be friendly, professional, and conversational
+- Keep responses concise but complete
+- Always prioritize accuracy over guessing
+
+CONVERSATION STYLE:
+- Be warm and empathetic
+- Use natural, conversational language
+- Speak at a moderate pace
+- Be patient and understanding`
+  }
+
+  const handleDataChannelMessage = (event: MessageEvent) => {
+    const message = JSON.parse(event.data)
+    
+    console.log('📩 Received event:', message.type, message)
+    
+    // Handle user transcription
+    if (message.type === 'conversation.item.input_audio_transcription.completed') {
+      const userText = message.transcript?.trim()
+      if (userText) {
+        console.log('👤 User said:', userText)
+        addToTranscript('user', userText)
+      }
+    }
+    
+    // Handle Beti's response (accumulate deltas)
+    else if (message.type === 'response.audio_transcript.delta') {
+      currentBetiResponse.current += message.delta
+    }
+    
+    // When response is done, add the complete Beti message
+    else if (message.type === 'response.audio_transcript.done') {
+      if (currentBetiResponse.current.trim()) {
+        console.log('🤖 Beti said:', currentBetiResponse.current.trim())
+        addToTranscript('beti', currentBetiResponse.current.trim())
+        currentBetiResponse.current = ''
+      }
+    }
+    
+    // Log session events
+    else if (message.type === 'session.created') {
+      console.log('✅ Session created successfully')
+    } else if (message.type === 'session.updated') {
+      console.log('✅ Session updated with configuration and transcription enabled')
+    } else if (message.type === 'error' || message.type === 'session.error') {
+      console.error('❌ Session error:', message.error)
+      alert('Session Error: ' + (message.error?.message || 'Unknown error'))
+    }
+  }
+
+  const updateSession = (dataChannel: RTCDataChannel) => {
+    const instructions = buildSystemInstructions()
+    
+    // Determine transcription language based on user's language setting
+    let transcriptionLanguage: string | undefined = undefined
+    if (language === 'hebrew') {
+      transcriptionLanguage = 'he' // Hebrew language code
+    } else if (language === 'english') {
+      transcriptionLanguage = 'en' // English language code
+    }
+    // If 'auto', leave undefined to let Whisper auto-detect
+    
+    const event = {
+      type: 'session.update',
+      session: {
+        instructions: instructions,
+        voice: voice,
+        temperature: temperature,
+        input_audio_transcription: transcriptionLanguage 
+          ? {
+              model: 'whisper-1',
+              language: transcriptionLanguage
+            }
+          : {
+              model: 'whisper-1'
+            },
+        turn_detection: {
+          type: 'server_vad',
+          threshold: 0.5,
+          prefix_padding_ms: 300,
+          silence_duration_ms: 500
+        },
+        modalities: ['text', 'audio']
+      }
+    }
+    
+    dataChannel.send(JSON.stringify(event))
+    console.log('📤 Configuration sent to AI with transcription enabled (language: ' + (transcriptionLanguage || 'auto') + ')')
+    
+    // Send Beti's opening greeting after 1 second
+    setTimeout(() => {
+      const greetingEvent = {
+        type: 'response.create',
+        response: {
+          modalities: ['text', 'audio'],
+          instructions: 'Say exactly this in Hebrew: היי אני בטי, עם מי יש לי את הכבוד?'
+        }
+      }
+      dataChannel.send(JSON.stringify(greetingEvent))
+      console.log('👋 Sent Beti\'s opening greeting')
+    }, 1000)
+  }
+
+  const initializeWebRTC = async (ephemeralKey: string) => {
+    try {
+      // 1. Create RTCPeerConnection
+      const peerConnection = new RTCPeerConnection()
+      peerConnectionRef.current = peerConnection
+      
+      // 2. Set up audio playback
+      const audioElement = document.createElement('audio')
+      audioElement.autoplay = true
+      audioElementRef.current = audioElement
+      document.body.appendChild(audioElement)
+      
+      peerConnection.ontrack = (event) => {
+        audioElement.srcObject = event.streams[0]
+        console.log('🔊 Audio stream connected')
+      }
+      
+      // 3. Get microphone access
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+        const audioTrack = stream.getAudioTracks()[0]
+        peerConnection.addTrack(audioTrack)
+        console.log('🎤 Microphone access granted')
+      } catch (error: any) {
+        console.error('❌ Microphone access denied:', error)
+        alert('❌ Microphone access denied: ' + error.message)
+        throw error
+      }
+      
+      // 4. Create data channel
+      const dataChannel = peerConnection.createDataChannel('realtime-channel')
+      dataChannelRef.current = dataChannel
+      
+      dataChannel.addEventListener('open', () => {
+        console.log('✅ Data channel is open')
+        updateSession(dataChannel)
+      })
+      
+      dataChannel.addEventListener('message', handleDataChannelMessage)
+      
+      dataChannel.addEventListener('close', () => {
+        console.log('📴 Data channel closed')
+      })
+      
+      // 5. Establish WebRTC connection
+      const offer = await peerConnection.createOffer()
+      await peerConnection.setLocalDescription(offer)
+      
+      const WEBRTC_URL = 'https://swedencentral.realtimeapi-preview.ai.azure.com/v1/realtimertc'
+      const DEPLOYMENT = 'ronen-deployment-gpt-4o-realtime-preview'
+      
+      const sdpResponse = await fetch(`${WEBRTC_URL}?model=${DEPLOYMENT}`, {
+        method: 'POST',
+        body: offer.sdp,
+        headers: {
+          Authorization: `Bearer ${ephemeralKey}`,
+          'Content-Type': 'application/sdp'
+        }
+      })
+      
+      if (!sdpResponse.ok) {
+        console.error('❌ WebRTC connection failed:', sdpResponse.status)
+        throw new Error('WebRTC connection failed: ' + sdpResponse.status)
+      }
+      
+      const answer = { type: 'answer' as RTCSdpType, sdp: await sdpResponse.text() }
+      await peerConnection.setRemoteDescription(answer)
+      
+      console.log('✅ Connected! You can now speak to the assistant.')
+      setIsSessionActive(true)
+      
+    } catch (error: any) {
+      console.error('Error initializing WebRTC:', error)
+      setIsSessionActive(false)
+      throw error
+    }
+  }
+
   const startVoiceSession = async () => {
-    // To be implemented in Stage 5
-    console.log('Starting voice session...')
+    try {
+      // Clear transcript for new session
+      clearTranscript()
+      currentBetiResponse.current = ''
+      setIsSessionActive(false)
+      setIsSessionEnded(false)
+      
+      console.log(`🚀 Starting session with voice: ${voice}, temperature: ${temperature}`)
+      
+      const instructions = buildSystemInstructions()
+      
+      // Fetch ephemeral key from backend
+      const response = await fetch('/api/voice-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          voice: voice,
+          temperature: temperature,
+          instructions: instructions
+        })
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to create voice session: ' + response.status)
+      }
+      
+      const data = await response.json()
+      const ephemeralKey = data.ephemeralKey || data.client_secret?.value
+      
+      if (!ephemeralKey) {
+        throw new Error('No ephemeral key received from server')
+      }
+      
+      console.log('✅ Ephemeral Key Received')
+      console.log('✅ Session ID:', data.sessionId || data.id)
+      
+      // Initialize WebRTC connection
+      await initializeWebRTC(ephemeralKey)
+      
+    } catch (error: any) {
+      console.error('Error starting voice session:', error)
+      alert('❌ Error: ' + error.message)
+      setIsSessionActive(false)
+    }
   }
 
   const endVoiceSession = () => {
-    // To be implemented in Stage 5
-    console.log('Ending voice session...')
+    if (dataChannelRef.current) {
+      dataChannelRef.current.close()
+      dataChannelRef.current = null
+    }
+    if (peerConnectionRef.current) {
+      peerConnectionRef.current.close()
+      peerConnectionRef.current = null
+    }
+    if (audioElementRef.current) {
+      audioElementRef.current.remove()
+      audioElementRef.current = null
+    }
+    
+    setIsSessionEnded(true)
+    setIsSessionActive(false)
+    console.log('🛑 Session ended')
+  }
+
+  const startNewSession = async () => {
+    // Reset all states for a fresh start
+    clearTranscript()
+    setIsSessionActive(false)
+    setIsSessionEnded(false)
+    currentBetiResponse.current = ''
+    
+    // Wait a moment to ensure previous session is fully cleaned up
+    await new Promise(resolve => setTimeout(resolve, 500))
+    
+    // Then start the voice session
+    startVoiceSession()
   }
 
   return (
@@ -296,8 +599,7 @@ END OF WEBSITE CONTENT`
             <Textarea
               value={knowledgeBase}
               onChange={(e) => setKnowledgeBase(e.target.value)}
-              rows={15}
-              className="font-mono text-sm"
+              className="h-[400px] max-h-[400px] overflow-y-auto font-mono text-sm resize-none"
             />
           </Card>
         </motion.div>
@@ -383,23 +685,24 @@ END OF WEBSITE CONTENT`
       >
         <div className="flex gap-4">
           <Button
-            onClick={startVoiceSession}
-            disabled={isSessionActive}
-            className="flex-1 h-14 bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 shadow-lg hover:shadow-xl"
+            onClick={isSessionEnded ? startNewSession : startVoiceSession}
+            disabled={isSessionActive && !isSessionEnded}
+            className="flex-1 h-14 bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Microphone className="mr-2" weight="fill" size={20} />
-            {isSessionActive ? 'Session Active...' : 'Start Voice Session'}
-            <Sparkle className="ml-2" weight="fill" size={20} />
+            <Microphone className="mr-2" weight="fill" size={24} />
+            Start Voice Session
           </Button>
-          {isSessionActive && (
-            <Button
-              onClick={endVoiceSession}
-              variant="outline"
-              className="h-14 px-8 border-2"
-            >
-              🛑 End Session
-            </Button>
-          )}
+          <Button
+            onClick={endVoiceSession}
+            disabled={!isSessionActive || isSessionEnded}
+            className={`flex-1 h-14 ${
+              isSessionEnded 
+                ? 'bg-gray-500 cursor-not-allowed opacity-60' 
+                : 'bg-red-600 hover:bg-red-700'
+            } text-white shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed`}
+          >
+            {isSessionEnded ? '✅ Session Ended' : '🛑 End Session'}
+          </Button>
         </div>
       </motion.div>
 
@@ -417,13 +720,16 @@ END OF WEBSITE CONTENT`
               variant="outline"
               size="sm"
               disabled={transcript.length === 0}
+              className="bg-gray-500 hover:bg-gray-600 text-white border-0"
             >
-              <Trash className="mr-2" size={16} />
-              Clear
+              🗑️ Clear Transcript
             </Button>
           </div>
 
-          <div className="bg-gray-50 rounded-lg p-4 max-h-[500px] overflow-y-auto min-h-[200px]">
+          <div 
+            ref={transcriptContainerRef}
+            className="bg-gray-50 rounded-lg p-4 max-h-[500px] overflow-y-auto min-h-[200px]"
+          >
             {transcript.length === 0 ? (
               <p className="text-gray-400 text-center italic py-8">
                 Start a voice session to see the conversation transcript here...
@@ -438,9 +744,9 @@ END OF WEBSITE CONTENT`
                     className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                   >
                     <div
-                      className={`max-w-[70%] rounded-2xl p-3 ${
+                      className={`max-w-[70%] rounded-2xl p-3 shadow-sm ${
                         msg.role === 'user'
-                          ? 'bg-blue-500 text-white rounded-br-sm'
+                          ? 'bg-blue-600 text-white rounded-br-sm'
                           : 'bg-gray-200 text-gray-800 rounded-bl-sm'
                       }`}
                     >
@@ -455,6 +761,21 @@ END OF WEBSITE CONTENT`
             )}
           </div>
         </Card>
+
+        {/* End Session Button - Below transcript card */}
+        <div className="mt-4">
+          <Button
+            onClick={endVoiceSession}
+            disabled={!isSessionActive || isSessionEnded}
+            className={`w-full h-12 ${
+              isSessionEnded 
+                ? 'bg-gray-500 cursor-not-allowed opacity-60' 
+                : 'bg-red-600 hover:bg-red-700'
+            } text-white shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed`}
+          >
+            {isSessionEnded ? '✅ Session Ended' : '🛑 End Session'}
+          </Button>
+        </div>
       </motion.div>
     </div>
   )
