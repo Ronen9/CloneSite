@@ -1,26 +1,48 @@
-# 🚀 Vercel Deployment Guide
+# 🚀 Vercel Deployment Guide - Voice Assistant Ready
+
+## ✅ Pre-Deployment Checklist
+
+Before deploying to Vercel, ensure:
+- [x] All code committed to GitHub main branch
+- [x] Build process tested locally (`npm run build`)
+- [x] No API keys in frontend code
+- [x] All API routes use `module.exports` format
+- [x] `vercel.json` configured correctly
+- [x] `.vercelignore` excludes unnecessary files
 
 ## Prerequisites
 - Vercel account
-- GitHub repository connected to Vercel
+- GitHub repository connected to Vercel (auto-deploys on push to main)
 - Environment variables ready
 
 ## 📝 Environment Variables Setup
 
-In your Vercel project dashboard, add these environment variables:
+In your Vercel project dashboard, add these **5 REQUIRED** environment variables:
 
 ### Required Variables
 
 ```bash
-# Azure OpenAI Realtime API
-AZURE_OPENAI_API_KEY=your_azure_openai_api_key_here
-AZURE_OPENAI_ENDPOINT=https://your-resource-name.openai.azure.com
-AZURE_OPENAI_DEPLOYMENT=your-deployment-name
-AZURE_OPENAI_RESOURCE=your-resource-name
+# Azure OpenAI Realtime API (for Voice Assistant)
+AZURE_OPENAI_API_KEY=1FdVYUoTnKj9c5BRX6LjgwsY9WQOTaGXQODR7AZubepupsSx8hWGJQQJ99BJACfhMk5XJ3w3AAABACOGly2w
+AZURE_OPENAI_ENDPOINT=https://ronen-openai-realtime.openai.azure.com
+AZURE_OPENAI_DEPLOYMENT=ronen-deployment-gpt-4o-realtime-preview
+AZURE_OPENAI_RESOURCE=ronen-openai-realtime
 
-# Firecrawl API
-FIRECRAWL_API_KEY=your_firecrawl_api_key_here
+# Firecrawl API (for Website Scraping)
+FIRECRAWL_API_KEY=fc-0515511a88e4440292549c718ed2821a
 ```
+
+### How to Add Environment Variables in Vercel
+
+1. Go to your project in Vercel dashboard
+2. Click **Settings** → **Environment Variables**
+3. Add each variable:
+   - **Name**: `AZURE_OPENAI_API_KEY`
+   - **Value**: `1FdVYUoTnKj9c5BRX6LjgwsY9WQOTaGXQODR7AZubepupsSx8hWGJQQJ99BJACfhMk5XJ3w3AAABACOGly2w`
+   - **Environment**: Select all (Production, Preview, Development)
+   - Click **Save**
+4. Repeat for all 5 variables
+5. **Redeploy** the project after adding variables
 
 ## 🔧 Deployment Steps
 
