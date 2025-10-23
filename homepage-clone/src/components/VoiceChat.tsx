@@ -461,21 +461,21 @@ CONVERSATION STYLE:
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
+        transition={{ delay: 0.1, type: 'spring', stiffness: 100 }}
       >
-        <Card className="backdrop-blur-xl bg-blue-50/50 border-blue-200/50 p-6">
-          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+        <Card className="backdrop-blur-xl bg-gradient-to-br from-blue-50/60 via-indigo-50/60 to-violet-50/60 border-white/40 shadow-lg hover:shadow-xl transition-shadow duration-300 p-4 md:p-6">
+          <h3 className="text-base md:text-lg font-semibold mb-3 md:mb-4 flex items-center gap-2 bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
             📚 Knowledge Base Configuration
           </h3>
-          <p className="text-sm text-muted-foreground mb-4">
+          <p className="text-xs md:text-sm text-muted-foreground mb-3 md:mb-4">
             The assistant has access to the knowledge base defined below. You can customize it to include your company's information, products, policies, FAQs, etc.
           </p>
 
           <div className="space-y-4">
             {/* Strict Mode Toggle */}
             <div className="flex items-center justify-between">
-              <Label htmlFor="strict-mode" className="text-sm font-medium">
-                Knowledge Base Only Mode
+              <Label htmlFor="strict-mode" className="text-sm font-medium flex items-center gap-2">
+                🔒 Knowledge Base Only Mode
               </Label>
               <div className="flex items-center gap-2">
                 <input
@@ -496,14 +496,15 @@ CONVERSATION STYLE:
             {/* Firecrawl Section - visible when strict mode ON */}
             {strictMode && (
               <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                className="bg-blue-100/50 border border-blue-200 rounded-lg p-4 space-y-4"
+                initial={{ opacity: 0, height: 0, scale: 0.95 }}
+                animate={{ opacity: 1, height: 'auto', scale: 1 }}
+                exit={{ opacity: 0, height: 0, scale: 0.95 }}
+                transition={{ duration: 0.3, type: 'spring', stiffness: 120 }}
+                className="bg-gradient-to-br from-orange-50/80 to-red-50/80 border border-orange-200/60 rounded-lg p-4 space-y-4 shadow-md"
               >
                 <h4 className="font-semibold flex items-center gap-2">
-                  <Fire weight="fill" className="text-orange-500" size={20} />
-                  Firecrawl - Auto-populate Knowledge Base
+                  <Fire weight="fill" className="text-orange-500 animate-pulse" size={20} />
+                  <span className="bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">Firecrawl - Auto-populate Knowledge Base</span>
                 </h4>
                 <p className="text-sm text-muted-foreground">
                   Enter a website URL to automatically extract content and populate your knowledge base.
@@ -557,9 +558,13 @@ CONVERSATION STYLE:
                     <Button
                       onClick={handleCrawl}
                       disabled={isCrawling || !websiteUrl.trim()}
-                      className="bg-primary hover:bg-primary/90"
+                      className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 active:scale-95"
                     >
-                      {isCrawling ? '⏳' : '🔍'} Crawl
+                      {isCrawling ? (
+                        <><span className="animate-spin">⏳</span> Crawling...</>
+                      ) : (
+                        <><Fire weight="fill" size={16} className="mr-1" /> Crawl</>
+                      )}
                     </Button>
                   </div>
                 </div>
@@ -577,7 +582,7 @@ CONVERSATION STYLE:
             <Button
               onClick={() => setShowKnowledgeEditor(!showKnowledgeEditor)}
               variant="outline"
-              className="w-full"
+              className="w-full hover:bg-primary/10 hover:border-primary transition-all duration-200"
             >
               ✏️ {showKnowledgeEditor ? 'Hide' : 'Edit'} Knowledge Base
             </Button>
@@ -609,10 +614,10 @@ CONVERSATION STYLE:
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
+        transition={{ delay: 0.2, type: 'spring', stiffness: 100 }}
       >
-        <Card className="backdrop-blur-xl bg-card/70 border-white/20 p-6">
-          <h3 className="text-lg font-semibold mb-4">⚙️ Voice Configuration</h3>
+        <Card className="backdrop-blur-xl bg-gradient-to-br from-violet-50/60 via-purple-50/60 to-pink-50/60 border-white/40 shadow-lg hover:shadow-xl transition-shadow duration-300 p-4 md:p-6">
+          <h3 className="text-base md:text-lg font-semibold mb-3 md:mb-4 bg-gradient-to-r from-violet-600 to-purple-600 bg-clip-text text-transparent">⚙️ Voice Configuration</h3>
 
           <div className="space-y-4">
             {/* Voice Selector */}
@@ -681,27 +686,41 @@ CONVERSATION STYLE:
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
+        transition={{ delay: 0.3, type: 'spring', stiffness: 100 }}
       >
-        <div className="flex gap-4">
+        <div className="flex flex-col sm:flex-row gap-3 md:gap-4">
           <Button
             onClick={isSessionEnded ? startNewSession : startVoiceSession}
             disabled={isSessionActive && !isSessionEnded}
-            className="flex-1 h-14 bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-1 h-12 sm:h-14 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
           >
-            <Microphone className="mr-2" weight="fill" size={24} />
-            Start Voice Session
+            <Microphone className="mr-2" weight="fill" size={20} />
+            <span className="hidden sm:inline">
+              {isSessionActive && !isSessionEnded ? (
+                <><span className="animate-pulse">🔴</span> Session Active</>
+              ) : (
+                'Start Voice Session'
+              )}
+            </span>
+            <span className="sm:hidden">
+              {isSessionActive && !isSessionEnded ? 'Active' : 'Start'}
+            </span>
           </Button>
           <Button
             onClick={endVoiceSession}
             disabled={!isSessionActive || isSessionEnded}
-            className={`flex-1 h-14 ${
+            className={`flex-1 h-12 sm:h-14 ${
               isSessionEnded 
-                ? 'bg-gray-500 cursor-not-allowed opacity-60' 
-                : 'bg-red-600 hover:bg-red-700'
-            } text-white shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed`}
+                ? 'bg-gradient-to-r from-green-500 to-emerald-500 cursor-not-allowed opacity-80' 
+                : 'bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700'
+            } text-white shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100`}
           >
-            {isSessionEnded ? '✅ Session Ended' : '🛑 End Session'}
+            <span className="hidden sm:inline">
+              {isSessionEnded ? '✅ Session Ended' : '🛑 End Session'}
+            </span>
+            <span className="sm:hidden">
+              {isSessionEnded ? '✅ Ended' : '🛑 End'}
+            </span>
           </Button>
         </div>
       </motion.div>
@@ -710,17 +729,17 @@ CONVERSATION STYLE:
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.4 }}
+        transition={{ delay: 0.4, type: 'spring', stiffness: 100 }}
       >
-        <Card className="backdrop-blur-xl bg-card/70 border-white/20 p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold">💬 Conversation Transcript</h3>
+        <Card className="backdrop-blur-xl bg-gradient-to-br from-slate-50/60 via-gray-50/60 to-zinc-50/60 border-white/40 shadow-lg hover:shadow-xl transition-shadow duration-300 p-4 md:p-6">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
+            <h3 className="text-base md:text-lg font-semibold bg-gradient-to-r from-slate-700 to-gray-700 bg-clip-text text-transparent">💬 Conversation Transcript</h3>
             <Button
               onClick={clearTranscript}
               variant="outline"
               size="sm"
               disabled={transcript.length === 0}
-              className="bg-gray-500 hover:bg-gray-600 text-white border-0"
+              className="bg-gradient-to-r from-gray-500 to-slate-500 hover:from-gray-600 hover:to-slate-600 text-white border-0 shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 active:scale-95"
             >
               🗑️ Clear Transcript
             </Button>
@@ -728,7 +747,7 @@ CONVERSATION STYLE:
 
           <div 
             ref={transcriptContainerRef}
-            className="bg-gray-50 rounded-lg p-4 max-h-[500px] overflow-y-auto min-h-[200px]"
+            className="bg-gray-50 rounded-lg p-3 md:p-4 max-h-[400px] md:max-h-[500px] overflow-y-auto min-h-[200px]"
           >
             {transcript.length === 0 ? (
               <p className="text-gray-400 text-center italic py-8">
@@ -744,10 +763,10 @@ CONVERSATION STYLE:
                     className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                   >
                     <div
-                      className={`max-w-[70%] rounded-2xl p-3 shadow-sm ${
+                      className={`max-w-[85%] sm:max-w-[70%] rounded-2xl p-2.5 md:p-3 shadow-md hover:shadow-lg transition-shadow duration-200 ${
                         msg.role === 'user'
-                          ? 'bg-blue-600 text-white rounded-br-sm'
-                          : 'bg-gray-200 text-gray-800 rounded-bl-sm'
+                          ? 'bg-gradient-to-br from-blue-600 to-indigo-600 text-white rounded-br-sm'
+                          : 'bg-gradient-to-br from-gray-100 to-slate-100 text-gray-800 rounded-bl-sm border border-gray-200'
                       }`}
                     >
                       <div className="text-xs font-bold mb-1">
@@ -769,9 +788,9 @@ CONVERSATION STYLE:
             disabled={!isSessionActive || isSessionEnded}
             className={`w-full h-12 ${
               isSessionEnded 
-                ? 'bg-gray-500 cursor-not-allowed opacity-60' 
-                : 'bg-red-600 hover:bg-red-700'
-            } text-white shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed`}
+                ? 'bg-gradient-to-r from-green-500 to-emerald-500 cursor-not-allowed opacity-80' 
+                : 'bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700'
+            } text-white shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100`}
           >
             {isSessionEnded ? '✅ Session Ended' : '🛑 End Session'}
           </Button>
