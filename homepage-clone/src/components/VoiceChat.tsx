@@ -238,9 +238,16 @@ CONVERSATION STYLE:
       console.log('✅ Session created successfully')
     } else if (message.type === 'session.updated') {
       console.log('✅ Session updated with configuration and transcription enabled')
-    } else if (message.type === 'error' || message.type === 'session.error') {
+    } else if (message.type === 'error') {
+      const errorMessage = message.error?.message || 'Unknown error'
       console.error('❌ Session error:', message.error)
-      alert('Session Error: ' + (message.error?.message || 'Unknown error'))
+      
+      // Don't alert for transcription-related errors, just log them
+      if (errorMessage.includes('truncated') || errorMessage.includes('audio messages')) {
+        console.warn('⚠️ Transcription error (non-critical):', errorMessage)
+      } else {
+        alert('Session Error: ' + errorMessage)
+      }
     }
   }
 
@@ -423,33 +430,66 @@ CONVERSATION STYLE:
   }
 
   const endVoiceSession = () => {
+    // Close data channel first
     if (dataChannelRef.current) {
-      dataChannelRef.current.close()
+      try {
+        dataChannelRef.current.close()
+      } catch (e) {
+        console.warn('Error closing data channel:', e)
+      }
       dataChannelRef.current = null
     }
+    
+    // Close peer connection
     if (peerConnectionRef.current) {
-      peerConnectionRef.current.close()
+      try {
+        // Stop all tracks
+        peerConnectionRef.current.getSenders().forEach(sender => {
+          if (sender.track) {
+            sender.track.stop()
+          }
+        })
+        peerConnectionRef.current.close()
+      } catch (e) {
+        console.warn('Error closing peer connection:', e)
+      }
       peerConnectionRef.current = null
     }
+    
+    // Remove audio element
     if (audioElementRef.current) {
-      audioElementRef.current.remove()
+      try {
+        audioElementRef.current.pause()
+        audioElementRef.current.srcObject = null
+        audioElementRef.current.remove()
+      } catch (e) {
+        console.warn('Error removing audio element:', e)
+      }
       audioElementRef.current = null
     }
     
+    // Reset response accumulator
+    currentBetiResponse.current = ''
+    
     setIsSessionEnded(true)
     setIsSessionActive(false)
-    console.log('🛑 Session ended')
+    console.log('🛑 Session ended and cleaned up')
   }
 
   const startNewSession = async () => {
+    console.log('🔄 Starting new session...')
+    
+    // First, ensure previous session is fully closed
+    endVoiceSession()
+    
     // Reset all states for a fresh start
     clearTranscript()
     setIsSessionActive(false)
     setIsSessionEnded(false)
     currentBetiResponse.current = ''
     
-    // Wait a moment to ensure previous session is fully cleaned up
-    await new Promise(resolve => setTimeout(resolve, 500))
+    // Wait longer to ensure complete cleanup (1 second)
+    await new Promise(resolve => setTimeout(resolve, 1000))
     
     // Then start the voice session
     startVoiceSession()
