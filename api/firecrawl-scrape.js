@@ -3,7 +3,7 @@
  * Securely scrapes or crawls websites using Firecrawl API
  * 
  * POST /api/firecrawl-scrape
- * Body: { url, type: "scrape" | "crawl" }
+ * Body: { url, type: "scrape" | "crawl", maxPages: number }
  * Returns: { success, content, pageCount, creditsUsed }
  */
 
@@ -41,7 +41,7 @@ module.exports = async function handler(req, res) {
     }
 
     // Get request parameters
-    const { url, type = 'scrape' } = req.body;
+    const { url, type = 'scrape', maxPages = 1 } = req.body;
 
     // Validate parameters
     if (!url || !url.trim()) {
@@ -105,7 +105,7 @@ module.exports = async function handler(req, res) {
 
     // Handle Full Crawl (multiple pages)
     if (type === 'crawl') {
-      // Start the crawl
+      // Start the crawl with specified page limit
       const crawlResponse = await fetch('https://api.firecrawl.dev/v1/crawl', {
         method: 'POST',
         headers: {
@@ -114,7 +114,7 @@ module.exports = async function handler(req, res) {
         },
         body: JSON.stringify({
           url: url,
-          limit: 20,
+          limit: maxPages,
           scrapeOptions: {
             formats: ['markdown'],
             onlyMainContent: true

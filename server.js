@@ -452,7 +452,7 @@ app.post('/api/firecrawl-scrape', async (req, res) => {
       return res.status(500).json({ error: 'Missing FIRECRAWL_API_KEY' });
     }
 
-    const { url, type = 'scrape' } = req.body;
+    const { url, type = 'scrape', maxPages = 1 } = req.body;
 
     if (!url || !url.trim()) {
       return res.status(400).json({ error: 'URL is required' });
@@ -488,8 +488,89 @@ app.post('/api/firecrawl-scrape', async (req, res) => {
       });
     }
 
-    // TODO: Implement full crawl logic if needed
-    res.status(400).json({ error: 'Full crawl not yet implemented in local dev server' });
+    if (type === 'crawl') {
+      // Start the crawl with specified page limit
+      const crawlResponse = await axios.post('https://api.firecrawl.dev/v1/crawl', {
+        url: url,
+        limit: maxPages,
+        scrapeOptions: {
+          formats: ['markdown'],
+          onlyMainContent: true
+        }
+      }, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        }
+      });
+
+      const jobId = crawlResponse.data.id;
+
+      if (!jobId) {
+        return res.status(500).json({ error: 'No job ID returned from crawl request' });
+      }
+
+      // Poll for completion (max 60 attempts = 5 minutes)
+      let attempts = 0;
+      const maxAttempts = 60;
+
+      const checkStatus = async () => {
+        attempts++;
+
+        const statusResponse = await axios.get(`https://api.firecrawl.dev/v1/crawl/${jobId}`, {
+          headers: {
+            'Authorization': `Bearer ${apiKey}`
+          }
+        });
+
+        const statusData = statusResponse.data;
+
+        if (statusData.status === 'completed') {
+          // Extract all content
+          let allContent = '';
+          let pageCount = 0;
+
+          if (statusData.data && Array.isArray(statusData.data)) {
+            pageCount = statusData.data.length;
+            statusData.data.forEach((page, index) => {
+              if (page.markdown) {
+                allContent += `\n\n--- PAGE ${index + 1}: ${page.metadata?.sourceURL || page.url || 'Unknown URL'} ---\n\n`;
+                allContent += page.markdown;
+              }
+            });
+          }
+
+          if (!allContent) {
+            throw new Error('No content extracted from crawled pages');
+          }
+
+          return res.json({
+            success: true,
+            content: allContent,
+            pageCount: pageCount,
+            creditsUsed: pageCount,
+            type: 'crawl'
+          });
+
+        } else if (statusData.status === 'failed') {
+          throw new Error('Crawl job failed: ' + (statusData.error || 'Unknown error'));
+        } else {
+          // Still in progress
+          if (attempts < maxAttempts) {
+            // Wait 5 seconds and check again
+            await new Promise(resolve => setTimeout(resolve, 5000));
+            return checkStatus();
+          } else {
+            throw new Error('Crawl took too long (timeout after 5 minutes)');
+          }
+        }
+      };
+
+      // Start polling
+      return await checkStatus();
+    }
+
+    res.status(400).json({ error: 'Type must be "scrape" or "crawl"' });
   } catch (error) {
     console.error('Scrape error:', error.message);
     res.status(500).json({ error: 'Internal server error', message: error.message });

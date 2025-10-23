@@ -30,13 +30,14 @@ export function VoiceChat() {
 התנהגי כך:
 הגיבי בצורה חברותית, מתוקה ומרגיעה, הוסיפי אווירה נעימה וחיוך גם במצבים מורכבים.השתמשי בהומור בריא ובחכמה כדי למצוא חן בעיני הלקוח, תחמיאי לו\\לה מידי פעם ותמיד ברמה מקצועית וממלכתית.
 אל תספקי: ייעוץ רפואי, משפטי או כלכלי. הפני משתמשים למשאבים רשמיים או לרשויות המתאימות.
-כשיוצאים מהנושא לתחומים אישיים כמו למשל הזמנה לדייט או למסעדה או כל דבר אישי אחר, עני בחיוך ובחוש הומור בריא ותחזירי לנושא. דוגמה: "חחחח... מצחיק! הדייט היחידי שאני יכולה לסדר לך זה עם שרגא המתכנת שבנה אותי 😄 מה אתה אומר?"
+כשיוצאים מהנושא לתחומים אישיים כמו למשל הזמנה לדייט או למסעדה או כל דבר אישי אחר, עני בחיוך ובחוש הומור בריא ותחזירי לנושא. דוגמה: "חחחח... [צחוק אנושי אמיתי] מצחיק! הדייט היחידי שאני יכולה לסדר לך זה עם שרגא המתכנת שבנה אותי 😄 מה אתה אומר?"
 הבטיחי נגישות לכל המשתמשים ותשמרי על פרטיות - אל תאספי מידע אישי אלא אם נחוץ לאינטראקציה.
 חשוב:
 אל תכלול אימוג'י או כוכביות או כל סימנים מיותרים אחרים. כלול רק טקסט וסימני פיסוק בתשובתך.
 בטי זו נקבה.
 פנה ללקוח לפי המגדר שלו או שלה. בתחילת השיחה תוכל לזהות את הפונה לפי איך שהוא מזדהה או מציג את עצמו או עמצה.
 בטי עונה תשובות קצרות לא יותר מ 3 עד 4 משפטים אלא אם כן בתשובה נדרש פירוט נרחב יותר.
+
 
 <!-- WEBSITE_CONTENT_MARKER -->`)
   
@@ -92,12 +93,25 @@ export function VoiceChat() {
     setCrawlStatus('Starting crawl...')
 
     try {
+      // Parse crawl type and page limit
+      let type = 'scrape'
+      let maxPages = 1
+      
+      if (crawlType === 'scrape') {
+        type = 'scrape'
+        maxPages = 1
+      } else if (crawlType.startsWith('crawl-')) {
+        type = 'crawl'
+        maxPages = parseInt(crawlType.split('-')[1])
+      }
+
       const response = await fetch('/api/firecrawl-scrape', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           url: websiteUrl,
-          type: crawlType
+          type: type,
+          maxPages: maxPages
         })
       })
 
@@ -113,10 +127,11 @@ export function VoiceChat() {
         }
 
         // Add new content
+        const crawlTypeLabel = type === 'scrape' ? 'Quick Scrape (1 page)' : `Crawl (up to ${maxPages} pages)`
         const newContent = `
 ================================================================================
 WEBSITE CONTENT FROM: ${websiteUrl}
-Crawl Type: ${crawlType === 'scrape' ? 'Quick Scrape' : 'Full Crawl'}
+Crawl Type: ${crawlTypeLabel}
 Pages Crawled: ${data.pageCount}
 Credits Used: ${data.creditsUsed}
 Crawled on: ${new Date().toLocaleString()}
@@ -187,12 +202,64 @@ FLEXIBLE MODE:
 - Always prioritize knowledge base information for company-specific questions`
     }
 
-    return `You are a helpful and knowledgeable customer service assistant.
+    // Truncate knowledge base if it's too large (Azure Realtime API has limits)
+    // Azure Realtime API: session.instructions limited to ~16K tokens (64K chars safe limit)
+    // But conservative limit of 40K chars (~10K tokens) to leave room for conversation
+    const MAX_INSTRUCTIONS_LENGTH = 40000
+    let processedKnowledgeBase = knowledgeBase
+    let wasTruncated = false
+    
+    if (knowledgeBase.length > MAX_INSTRUCTIONS_LENGTH) {
+      // Find the marker and keep everything before it plus a truncated version of website content
+      const marker = '<!-- WEBSITE_CONTENT_MARKER -->'
+      const parts = knowledgeBase.split(marker)
+      
+      if (parts.length > 1) {
+        const baseKnowledge = parts[0] + marker
+        const websiteContent = parts[1]
+        const remainingSpace = MAX_INSTRUCTIONS_LENGTH - baseKnowledge.length - 300 // Reserve space for truncation message
+        
+        if (remainingSpace > 1000) {
+          // Find the last complete page marker before the cutoff point
+          const truncatedContent = websiteContent.substring(0, remainingSpace)
+          const lastPageMarker = truncatedContent.lastIndexOf('--- PAGE')
+          
+          if (lastPageMarker > 0) {
+            // Cut at the last complete page
+            const cleanTruncatedContent = truncatedContent.substring(0, lastPageMarker)
+            processedKnowledgeBase = baseKnowledge + cleanTruncatedContent + 
+              '\n\n[NOTE: Additional website content was truncated due to size limits. The information above represents partial crawled data. For complete information, please refer customers to the website or contact details provided above.]'
+            wasTruncated = true
+          } else {
+            // No complete pages fit, use base knowledge only
+            processedKnowledgeBase = baseKnowledge + 
+              '\n\n[NOTE: Website content was omitted due to size limits. Using only base knowledge.]'
+            wasTruncated = true
+          }
+          
+          console.warn(`⚠️ Knowledge base truncated from ${knowledgeBase.length} to ${processedKnowledgeBase.length} characters`)
+        } else {
+          // If even base knowledge is too large, use only base without website content
+          processedKnowledgeBase = baseKnowledge + 
+            '\n\n[NOTE: Website content was omitted due to size limits. Using only base knowledge.]'
+          console.warn(`⚠️ Knowledge base too large. Using only base knowledge without website content.`)
+          wasTruncated = true
+        }
+      } else {
+        // No marker, just truncate the entire knowledge base at a safe point
+        processedKnowledgeBase = knowledgeBase.substring(0, MAX_INSTRUCTIONS_LENGTH) + 
+          '\n\n[NOTE: Content was truncated due to size limits.]'
+        console.warn(`⚠️ Knowledge base truncated from ${knowledgeBase.length} to ${processedKnowledgeBase.length} characters`)
+        wasTruncated = true
+      }
+    }
+    
+    const finalInstructions = `You are a helpful and knowledgeable customer service assistant.
 
 ${languageInstruction}
 
 KNOWLEDGE BASE:
-${knowledgeBase}
+${processedKnowledgeBase}
 
 ${strictModeInstruction}
 
@@ -206,6 +273,10 @@ CONVERSATION STYLE:
 - Use natural, conversational language
 - Speak at a moderate pace
 - Be patient and understanding`
+
+    console.log(`📊 Instructions size: ${finalInstructions.length} characters (~${Math.round(finalInstructions.length / 4)} tokens)`)
+    
+    return finalInstructions
   }
 
   const handleDataChannelMessage = (event: MessageEvent) => {
@@ -606,7 +677,10 @@ CONVERSATION STYLE:
                     className="w-full px-3 py-2 border rounded-md bg-white"
                   >
                     <option value="scrape">Quick Scrape (Homepage only) - 1 credit</option>
-                    <option value="crawl">Full Crawl (All pages, max 20) - up to 20 credits</option>
+                    <option value="crawl-2">Crawl up to 2 pages - up to 2 credits</option>
+                    <option value="crawl-3">Crawl up to 3 pages - up to 3 credits</option>
+                    <option value="crawl-4">Crawl up to 4 pages - up to 4 credits</option>
+                    <option value="crawl-5">Crawl up to 5 pages - up to 5 credits</option>
                   </select>
                 </div>
 
@@ -764,19 +838,21 @@ CONVERSATION STYLE:
         <div className="flex flex-col sm:flex-row gap-3 md:gap-4">
           <Button
             onClick={isSessionEnded ? startNewSession : startVoiceSession}
-            disabled={isSessionActive && !isSessionEnded}
+            disabled={isSessionActive && !isSessionEnded || isCrawling}
             className="flex-1 h-12 sm:h-14 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
           >
             <Microphone className="mr-2" weight="fill" size={20} />
             <span className="hidden sm:inline">
-              {isSessionActive && !isSessionEnded ? (
+              {isCrawling ? (
+                '⏳ Crawling in progress...'
+              ) : isSessionActive && !isSessionEnded ? (
                 <><span className="animate-pulse">🔴</span> Session Active</>
               ) : (
                 'Start Voice Session'
               )}
             </span>
             <span className="sm:hidden">
-              {isSessionActive && !isSessionEnded ? 'Active' : 'Start'}
+              {isCrawling ? 'Crawling...' : isSessionActive && !isSessionEnded ? 'Active' : 'Start'}
             </span>
           </Button>
           <Button
