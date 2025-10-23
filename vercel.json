@@ -1,5 +1,5 @@
 {
-  "buildCommand": "cd homepage-clone && npm install && npm run build",
+  "buildCommand": "cd homepage-clone && rm -f package-lock.json && npm install --legacy-peer-deps && npm run build",
   "outputDirectory": "homepage-clone/dist",
   "framework": null,
   "functions": {
