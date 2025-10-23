@@ -992,7 +992,19 @@ CONVERSATION STYLE:
       >
         <div className="flex flex-col sm:flex-row gap-3 md:gap-4">
           <Button
-            onClick={isSessionEnded ? startNewSession : startVoiceSession}
+            onClick={() => {
+              console.log('🔘 Start button clicked!', {
+                isSessionEnded,
+                isSessionActive,
+                isCrawling,
+                disabled: (isSessionActive && !isSessionEnded) || isCrawling
+              });
+              if (isSessionEnded) {
+                startNewSession();
+              } else {
+                startVoiceSession();
+              }
+            }}
             disabled={isSessionActive && !isSessionEnded || isCrawling}
             className="flex-1 h-12 sm:h-14 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
           >
