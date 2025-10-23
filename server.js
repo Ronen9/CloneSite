@@ -3,11 +3,12 @@ const cors = require('cors');
 const axios = require('axios');
 const path = require('path');
 const { directHtmlFetch } = require('./fallback-scraper');
+require('dotenv').config(); // Load environment variables
 
 const app = express();
 const PORT = process.env.PORT || 3003;
 
-const firecrawlApiKey = process.env.FIRECRAWL_API_KEY || "fc-0515511a88e4440292549c718ed2821a";
+const firecrawlApiKey = process.env.FIRECRAWL_API_KEY;
 
 app.use(cors());
 app.use(express.json());
@@ -360,6 +361,139 @@ app.post(['/clone', '/api/clone'], async (req, res) => {
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
+});
+
+// Voice session endpoint - Generate ephemeral keys for Azure OpenAI
+app.post('/api/voice-session', async (req, res) => {
+  try {
+    const apiKey = process.env.AZURE_OPENAI_API_KEY;
+    const endpoint = process.env.AZURE_OPENAI_ENDPOINT;
+    const deployment = process.env.AZURE_OPENAI_DEPLOYMENT;
+
+    if (!apiKey || !endpoint || !deployment) {
+      return res.status(500).json({ error: 'Missing Azure OpenAI configuration' });
+    }
+
+    const { voice = 'coral' } = req.body;
+
+    const sessionUrl = `${endpoint}/openai/realtimeapi/sessions?api-version=2025-04-01-preview`;
+    
+    const sessionResponse = await axios.post(sessionUrl, {
+      model: deployment,
+      voice: voice
+    }, {
+      headers: {
+        'api-key': apiKey,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    const sessionId = sessionResponse.data.id;
+    const ephemeralKey = sessionResponse.data.client_secret?.value;
+
+    if (!sessionId || !ephemeralKey) {
+      return res.status(500).json({ error: 'Failed to extract session credentials' });
+    }
+
+    res.json({
+      success: true,
+      sessionId: sessionId,
+      ephemeralKey: ephemeralKey,
+      deployment: deployment
+    });
+  } catch (error) {
+    console.error('Voice session error:', error.message);
+    res.status(500).json({ error: 'Internal server error', message: error.message });
+  }
+});
+
+// Firecrawl credits endpoint
+app.get('/api/firecrawl-credits', async (req, res) => {
+  try {
+    const apiKey = process.env.FIRECRAWL_API_KEY;
+
+    if (!apiKey) {
+      return res.status(500).json({ error: 'Missing FIRECRAWL_API_KEY' });
+    }
+
+    const response = await axios.get('https://api.firecrawl.dev/v2/team/credit-usage', {
+      headers: {
+        'Authorization': `Bearer ${apiKey}`
+      }
+    });
+
+    const data = response.data;
+    const remaining = data.data?.remainingCredits || 0;
+    const planCredits = data.data?.planCredits || 0;
+    const billingPeriodEnd = data.data?.billingPeriodEnd;
+
+    res.json({
+      success: true,
+      remainingCredits: remaining,
+      planCredits: planCredits,
+      billingPeriodEnd: billingPeriodEnd,
+      usage: {
+        used: planCredits - remaining,
+        percentage: planCredits > 0 ? Math.round(((planCredits - remaining) / planCredits) * 100) : 0
+      }
+    });
+  } catch (error) {
+    console.error('Credits fetch error:', error.message);
+    res.status(500).json({ error: 'Internal server error', message: error.message });
+  }
+});
+
+// Firecrawl scrape/crawl endpoint
+app.post('/api/firecrawl-scrape', async (req, res) => {
+  try {
+    const apiKey = process.env.FIRECRAWL_API_KEY;
+
+    if (!apiKey) {
+      return res.status(500).json({ error: 'Missing FIRECRAWL_API_KEY' });
+    }
+
+    const { url, type = 'scrape' } = req.body;
+
+    if (!url || !url.trim()) {
+      return res.status(400).json({ error: 'URL is required' });
+    }
+
+    if (type === 'scrape') {
+      const response = await axios.post('https://api.firecrawl.dev/v1/scrape', {
+        url: url,
+        formats: ['markdown'],
+        onlyMainContent: true
+      }, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        }
+      });
+
+      let content = '';
+      if (response.data.data && response.data.data.markdown) {
+        content = response.data.data.markdown;
+      } else if (response.data.markdown) {
+        content = response.data.markdown;
+      } else {
+        return res.status(500).json({ error: 'No content extracted' });
+      }
+
+      return res.json({
+        success: true,
+        content: content,
+        pageCount: 1,
+        creditsUsed: 1,
+        type: 'scrape'
+      });
+    }
+
+    // TODO: Implement full crawl logic if needed
+    res.status(400).json({ error: 'Full crawl not yet implemented in local dev server' });
+  } catch (error) {
+    console.error('Scrape error:', error.message);
+    res.status(500).json({ error: 'Internal server error', message: error.message });
+  }
 });
 
 // Serve index.html for all other routes (SPA support for production)
