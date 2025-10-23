@@ -111,6 +111,7 @@ export function VoiceChat() {
   const audioElementRef = useRef<HTMLAudioElement | null>(null)
   const currentBetiResponse = useRef<string>('')
   const transcriptContainerRef = useRef<HTMLDivElement | null>(null)
+  const sessionDataRef = useRef<any>(null)
 
   const knowledgeBaseCharsRemaining = MAX_INSTRUCTIONS_LENGTH - knowledgeBase.length
   const knowledgeBaseCounterClass = knowledgeBaseCharsRemaining < 0
@@ -437,10 +438,13 @@ CONVERSATION STYLE:
       const offer = await peerConnection.createOffer()
       await peerConnection.setLocalDescription(offer)
       
-      const WEBRTC_URL = 'https://swedencentral.realtimeapi-preview.ai.azure.com/v1/realtimertc'
-      const DEPLOYMENT = 'ronen-deployment-gpt-4o-realtime-preview'
+      // Use endpoint and deployment from session data
+      const sessionData = sessionDataRef.current
+      if (!sessionData?.endpoint || !sessionData?.deployment) {
+        throw new Error('Missing WebRTC endpoint or deployment information')
+      }
       
-      const sdpResponse = await fetch(`${WEBRTC_URL}?model=${DEPLOYMENT}`, {
+      const sdpResponse = await fetch(`${sessionData.endpoint}?model=${sessionData.deployment}`, {
         method: 'POST',
         body: offer.sdp,
         headers: {
@@ -503,6 +507,9 @@ CONVERSATION STYLE:
       
       console.log('✅ Ephemeral Key Received')
       console.log('✅ Session ID:', data.sessionId || data.id)
+      
+      // Store complete session data for WebRTC initialization
+      sessionDataRef.current = data
       
       // Initialize WebRTC connection
       await initializeWebRTC(ephemeralKey)

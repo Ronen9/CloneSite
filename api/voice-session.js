@@ -101,11 +101,16 @@ module.exports = async function handler(req, res) {
     }
 
     // Return session information to client (temperature and instructions configured client-side)
+    // Include WebRTC endpoint for client connection
+    const resource = process.env.AZURE_OPENAI_RESOURCE;
+    const webrtcEndpoint = `https://swedencentral.realtimeapi-preview.ai.azure.com/v1/realtimertc`;
+    
     return res.status(200).json({
       success: true,
       sessionId: sessionId,
       ephemeralKey: ephemeralKey,
-      deployment: deployment
+      deployment: deployment,
+      endpoint: webrtcEndpoint
     });
 
   } catch (error) {
