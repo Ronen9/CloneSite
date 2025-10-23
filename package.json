@@ -18,11 +18,20 @@
   },
   "dependencies": {
     "axios": "^1.6.0",
-    "express": "^4.18.0",
+    "concurrently": "^7.6.0",
     "cors": "^2.8.5",
-    "concurrently": "^7.6.0"
+    "dotenv": "^17.2.3",
+    "express": "^4.18.0"
   },
-  "keywords": ["firecrawl", "homepage", "clone", "react", "typescript", "tailwind", "azure"],
+  "keywords": [
+    "firecrawl",
+    "homepage",
+    "clone",
+    "react",
+    "typescript",
+    "tailwind",
+    "azure"
+  ],
   "author": "",
   "license": "MIT"
 }

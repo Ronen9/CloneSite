@@ -1,0 +1,34 @@
+# Development files
+node_modules
+.env
+.env.local
+test-env.js
+
+# Build artifacts
+homepage-clone/dist
+homepage-clone/node_modules
+
+# IDE files
+.vscode
+.idea
+*.swp
+*.swo
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Testing
+coverage
+*.test.js
+
+# Documentation (not needed for deployment)
+documents/
+README.md
+LICENSE
+nul

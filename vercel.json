@@ -5,6 +5,15 @@
   "functions": {
     "api/clone.js": {
       "maxDuration": 30
+    },
+    "api/voice-session.js": {
+      "maxDuration": 10
+    },
+    "api/firecrawl-credits.js": {
+      "maxDuration": 10
+    },
+    "api/firecrawl-scrape.js": {
+      "maxDuration": 60
     }
   },
   "rewrites": [
