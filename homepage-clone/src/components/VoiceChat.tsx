@@ -233,14 +233,21 @@ CONVERSATION STYLE:
       }
     }
     
-    // Log session events to console only
+    // Log session events
     else if (message.type === 'session.created') {
       console.log('✅ Session created successfully')
     } else if (message.type === 'session.updated') {
       console.log('✅ Session updated with configuration and transcription enabled')
-    } else if (message.type === 'error' || message.type === 'session.error') {
-      // Log error to console but don't show alert - most errors are non-critical
+    } else if (message.type === 'error') {
+      const errorMessage = message.error?.message || 'Unknown error'
       console.error('❌ Session error:', message.error)
+      
+      // Don't alert for transcription-related errors, just log them
+      if (errorMessage.includes('truncated') || errorMessage.includes('audio messages')) {
+        console.warn('⚠️ Transcription error (non-critical):', errorMessage)
+      } else {
+        alert('Session Error: ' + errorMessage)
+      }
     }
   }
 
