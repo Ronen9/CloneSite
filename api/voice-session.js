@@ -101,16 +101,71 @@ module.exports = async function handler(req, res) {
     }
 
     // Return session information to client (temperature and instructions configured client-side)
-    // Include WebRTC endpoint for client connection
-    const resource = process.env.AZURE_OPENAI_RESOURCE;
-    const webrtcEndpoint = `https://swedencentral.realtimeapi-preview.ai.azure.com/v1/realtimertc`;
-    
+    // Include WebRTC endpoint for client connection - MUST match your Azure region!
+
+    // Check if region is explicitly set via environment variable (recommended)
+    let region = process.env.AZURE_OPENAI_REGION || 'swedencentral';
+
+    // If not explicitly set, try to extract from endpoint or resource name
+    if (!process.env.AZURE_OPENAI_REGION) {
+      try {
+        // Try to extract region from endpoint URL
+        const endpointUrl = new URL(endpoint);
+        const hostname = endpointUrl.hostname; // e.g., "your-resource.openai.azure.com"
+
+        // Check if resource name contains region hint
+        const resourceName = hostname.split('.')[0];
+
+        // Common Azure OpenAI regions
+        const regionMapping = {
+          'sweden': 'swedencentral',
+          'us': 'eastus',
+          'east': 'eastus',
+          'west': 'westus',
+          'europe': 'westeurope',
+          'uk': 'uksouth',
+          'australia': 'australiaeast',
+          'canada': 'canadaeast',
+          'france': 'francecentral',
+          'japan': 'japaneast',
+          'korea': 'koreacentral'
+        };
+
+        // Try to detect region from resource name
+        for (const [key, value] of Object.entries(regionMapping)) {
+          if (resourceName.toLowerCase().includes(key)) {
+            region = value;
+            console.log(`Detected region '${region}' from resource name '${resourceName}'`);
+            break;
+          }
+        }
+
+        // If AZURE_OPENAI_RESOURCE env var is set, use it to determine region
+        const azureResource = process.env.AZURE_OPENAI_RESOURCE;
+        if (azureResource) {
+          for (const [key, value] of Object.entries(regionMapping)) {
+            if (azureResource.toLowerCase().includes(key)) {
+              region = value;
+              console.log(`Detected region '${region}' from AZURE_OPENAI_RESOURCE '${azureResource}'`);
+              break;
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('Could not parse Azure endpoint for region detection, using default:', region);
+      }
+    }
+
+    const webrtcEndpoint = `https://${region}.realtimeapi-preview.ai.azure.com/v1/realtimertc`;
+    console.log(`WebRTC endpoint: ${webrtcEndpoint}`);
+
     return res.status(200).json({
       success: true,
       sessionId: sessionId,
       ephemeralKey: ephemeralKey,
       deployment: deployment,
-      endpoint: webrtcEndpoint
+      endpoint: webrtcEndpoint,
+      region: region // Include region for debugging
     });
 
   } catch (error) {
