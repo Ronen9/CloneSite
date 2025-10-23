@@ -5,8 +5,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Microphone, Eye, EyeSlash, Fire, Sparkle, Trash } from '@phosphor-icons/react'
-import { motion } from 'framer-motion'
+import { Microphone, Eye, EyeSlash, Fire, Sparkle, Trash, Gear, X } from '@phosphor-icons/react'
+import { motion, AnimatePresence } from 'framer-motion'
 
 interface Message {
   role: 'user' | 'beti'
@@ -15,6 +15,9 @@ interface Message {
 }
 
 export function VoiceChat() {
+  // UI state - Settings panel visibility
+  const [showSettings, setShowSettings] = useState(false)
+  
   // Voice configuration state
   const [voice, setVoice] = useState('coral')
   const [temperature, setTemperature] = useState(0.7)
@@ -497,13 +500,39 @@ CONVERSATION STYLE:
 
   return (
     <div className="space-y-6">
-      {/* Knowledge Base Configuration Section */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1, type: 'spring', stiffness: 100 }}
-      >
-        <Card className="backdrop-blur-xl bg-gradient-to-br from-blue-50/60 via-indigo-50/60 to-violet-50/60 border-white/40 shadow-lg hover:shadow-xl transition-shadow duration-300 p-4 md:p-6">
+      {/* Settings Toggle Button - Floating at top right */}
+      <div className="flex justify-end">
+        <Button
+          onClick={() => setShowSettings(!showSettings)}
+          variant="outline"
+          className="bg-white/80 backdrop-blur-md hover:bg-white shadow-lg hover:shadow-xl transition-all duration-200 flex items-center gap-2"
+        >
+          {showSettings ? (
+            <>
+              <X weight="bold" size={20} />
+              <span>Close Settings</span>
+            </>
+          ) : (
+            <>
+              <Gear weight="fill" size={20} />
+              <span>Settings</span>
+            </>
+          )}
+        </Button>
+      </div>
+
+      {/* Configuration Sections - Only visible when settings is open */}
+      <AnimatePresence>
+        {showSettings && (
+          <>
+            {/* Knowledge Base Configuration Section */}
+            <motion.div
+              initial={{ opacity: 0, y: -20, height: 0 }}
+              animate={{ opacity: 1, y: 0, height: 'auto' }}
+              exit={{ opacity: 0, y: -20, height: 0 }}
+              transition={{ duration: 0.3, type: 'spring', stiffness: 100 }}
+            >
+              <Card className="backdrop-blur-xl bg-gradient-to-br from-blue-50/60 via-indigo-50/60 to-violet-50/60 border-white/40 shadow-lg hover:shadow-xl transition-shadow duration-300 p-4 md:p-6">
           <h3 className="text-base md:text-lg font-semibold mb-3 md:mb-4 flex items-center gap-2 bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
             📚 Knowledge Base Configuration
           </h3>
@@ -652,9 +681,10 @@ CONVERSATION STYLE:
 
       {/* Voice Configuration Section */}
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2, type: 'spring', stiffness: 100 }}
+        initial={{ opacity: 0, y: -20, height: 0 }}
+        animate={{ opacity: 1, y: 0, height: 'auto' }}
+        exit={{ opacity: 0, y: -20, height: 0 }}
+        transition={{ duration: 0.3, type: 'spring', stiffness: 100 }}
       >
         <Card className="backdrop-blur-xl bg-gradient-to-br from-violet-50/60 via-purple-50/60 to-pink-50/60 border-white/40 shadow-lg hover:shadow-xl transition-shadow duration-300 p-4 md:p-6">
           <h3 className="text-base md:text-lg font-semibold mb-3 md:mb-4 bg-gradient-to-r from-violet-600 to-purple-600 bg-clip-text text-transparent">⚙️ Voice Configuration</h3>
@@ -721,12 +751,15 @@ CONVERSATION STYLE:
           </div>
         </Card>
       </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
-      {/* Session Controls */}
+      {/* Session Controls - Always visible */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3, type: 'spring', stiffness: 100 }}
+        transition={{ delay: 0.1, type: 'spring', stiffness: 100 }}
       >
         <div className="flex flex-col sm:flex-row gap-3 md:gap-4">
           <Button
