@@ -104,7 +104,8 @@ module.exports = async function handler(req, res) {
     // Include WebRTC endpoint for client connection - MUST match your Azure region!
 
     // Check if region is explicitly set via environment variable (recommended)
-    let region = process.env.AZURE_OPENAI_REGION || 'swedencentral';
+    // NOTE: Only eastus2 and swedencentral support WebRTC Realtime API
+    let region = process.env.AZURE_OPENAI_REGION || 'eastus2'; // Changed default to eastus2 for better compatibility
 
     // If not explicitly set, try to extract from endpoint or resource name
     if (!process.env.AZURE_OPENAI_REGION) {
@@ -157,7 +158,13 @@ module.exports = async function handler(req, res) {
     }
 
     const webrtcEndpoint = `https://${region}.realtimeapi-preview.ai.azure.com/v1/realtimertc`;
+    console.log('=== Voice Session Debug Info ===');
     console.log(`WebRTC endpoint: ${webrtcEndpoint}`);
+    console.log(`Deployment: ${deployment}`);
+    console.log(`Azure endpoint: ${endpoint}`);
+    console.log(`Region: ${region}`);
+    console.log(`Session ID: ${sessionId}`);
+    console.log('================================');
 
     return res.status(200).json({
       success: true,
@@ -165,7 +172,8 @@ module.exports = async function handler(req, res) {
       ephemeralKey: ephemeralKey,
       deployment: deployment,
       endpoint: webrtcEndpoint,
-      region: region // Include region for debugging
+      region: region, // Include region for debugging
+      azureEndpoint: endpoint // Include original endpoint for debugging
     });
 
   } catch (error) {
