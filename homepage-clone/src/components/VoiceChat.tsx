@@ -8,6 +8,55 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Microphone, Eye, EyeSlash, Fire, Sparkle, Trash, Gear, X } from '@phosphor-icons/react'
 import { motion, AnimatePresence } from 'framer-motion'
 
+const MAX_INSTRUCTIONS_LENGTH = 40000
+
+const truncateKnowledgeBaseContent = (knowledgeBase: string) => {
+  if (knowledgeBase.length <= MAX_INSTRUCTIONS_LENGTH) {
+    return { content: knowledgeBase, wasTruncated: false }
+  }
+
+  const marker = '<!-- WEBSITE_CONTENT_MARKER -->'
+  const parts = knowledgeBase.split(marker)
+  let processedKnowledgeBase = knowledgeBase
+  let wasTruncated = false
+
+  if (parts.length > 1) {
+    const baseKnowledge = parts[0] + marker
+    const websiteContent = parts[1]
+    const remainingSpace = MAX_INSTRUCTIONS_LENGTH - baseKnowledge.length - 300
+
+    if (remainingSpace > 1000) {
+      const truncatedContent = websiteContent.substring(0, Math.max(0, remainingSpace))
+      const lastPageMarker = truncatedContent.lastIndexOf('--- PAGE')
+
+      if (lastPageMarker > 0) {
+        const cleanTruncatedContent = truncatedContent.substring(0, lastPageMarker)
+        processedKnowledgeBase = baseKnowledge + cleanTruncatedContent +
+          '\n\n[NOTE: Additional website content was truncated due to size limits. The information above represents partial crawled data. For complete information, please refer customers to the website or contact details provided above.]'
+        wasTruncated = true
+        console.warn(`⚠️ Knowledge base truncated from ${knowledgeBase.length} to ${processedKnowledgeBase.length} characters`)
+      } else {
+        processedKnowledgeBase = baseKnowledge +
+          '\n\n[NOTE: Website content was omitted due to size limits. Using only base knowledge.]'
+        wasTruncated = true
+        console.warn('⚠️ Website content too large. Using only base knowledge without website content.')
+      }
+    } else {
+      processedKnowledgeBase = baseKnowledge +
+        '\n\n[NOTE: Website content was omitted due to size limits. Using only base knowledge.]'
+      wasTruncated = true
+      console.warn('⚠️ Knowledge base too large. Using only base knowledge without website content.')
+    }
+  } else {
+    processedKnowledgeBase = knowledgeBase.substring(0, MAX_INSTRUCTIONS_LENGTH) +
+      '\n\n[NOTE: Content was truncated due to size limits.]'
+    wasTruncated = true
+    console.warn(`⚠️ Knowledge base truncated from ${knowledgeBase.length} to ${processedKnowledgeBase.length} characters`)
+  }
+
+  return { content: processedKnowledgeBase, wasTruncated }
+}
+
 interface Message {
   role: 'user' | 'beti'
   content: string
@@ -62,6 +111,13 @@ export function VoiceChat() {
   const audioElementRef = useRef<HTMLAudioElement | null>(null)
   const currentBetiResponse = useRef<string>('')
   const transcriptContainerRef = useRef<HTMLDivElement | null>(null)
+
+  const knowledgeBaseCharsRemaining = MAX_INSTRUCTIONS_LENGTH - knowledgeBase.length
+  const knowledgeBaseCounterClass = knowledgeBaseCharsRemaining < 0
+    ? 'text-red-500'
+    : knowledgeBaseCharsRemaining < 1000
+      ? 'text-orange-500'
+      : 'text-muted-foreground'
 
   // Fetch credits when strict mode is enabled
   useEffect(() => {
@@ -143,9 +199,14 @@ ${data.content}
 END OF WEBSITE CONTENT`
 
         updatedKnowledge = updatedKnowledge.replace(marker, marker + newContent)
-        setKnowledgeBase(updatedKnowledge)
+        const { content: limitedKnowledge, wasTruncated } = truncateKnowledgeBaseContent(updatedKnowledge)
+        setKnowledgeBase(limitedKnowledge)
 
-        setCrawlStatus(`✅ Success! ${data.pageCount} page(s) crawled (${data.creditsUsed} credits used).`)
+        let statusMessage = `✅ Success! ${data.pageCount} page(s) crawled (${data.creditsUsed} credits used).`
+        if (wasTruncated) {
+          statusMessage += ' ⚠️ Some website content was truncated to fit the 40,000 character limit.'
+        }
+        setCrawlStatus(statusMessage)
 
         // Refresh credits
         fetchCredits()
@@ -202,57 +263,7 @@ FLEXIBLE MODE:
 - Always prioritize knowledge base information for company-specific questions`
     }
 
-    // Truncate knowledge base if it's too large (Azure Realtime API has limits)
-    // Azure Realtime API: session.instructions limited to ~16K tokens (64K chars safe limit)
-    // But conservative limit of 40K chars (~10K tokens) to leave room for conversation
-    const MAX_INSTRUCTIONS_LENGTH = 40000
-    let processedKnowledgeBase = knowledgeBase
-    let wasTruncated = false
-    
-    if (knowledgeBase.length > MAX_INSTRUCTIONS_LENGTH) {
-      // Find the marker and keep everything before it plus a truncated version of website content
-      const marker = '<!-- WEBSITE_CONTENT_MARKER -->'
-      const parts = knowledgeBase.split(marker)
-      
-      if (parts.length > 1) {
-        const baseKnowledge = parts[0] + marker
-        const websiteContent = parts[1]
-        const remainingSpace = MAX_INSTRUCTIONS_LENGTH - baseKnowledge.length - 300 // Reserve space for truncation message
-        
-        if (remainingSpace > 1000) {
-          // Find the last complete page marker before the cutoff point
-          const truncatedContent = websiteContent.substring(0, remainingSpace)
-          const lastPageMarker = truncatedContent.lastIndexOf('--- PAGE')
-          
-          if (lastPageMarker > 0) {
-            // Cut at the last complete page
-            const cleanTruncatedContent = truncatedContent.substring(0, lastPageMarker)
-            processedKnowledgeBase = baseKnowledge + cleanTruncatedContent + 
-              '\n\n[NOTE: Additional website content was truncated due to size limits. The information above represents partial crawled data. For complete information, please refer customers to the website or contact details provided above.]'
-            wasTruncated = true
-          } else {
-            // No complete pages fit, use base knowledge only
-            processedKnowledgeBase = baseKnowledge + 
-              '\n\n[NOTE: Website content was omitted due to size limits. Using only base knowledge.]'
-            wasTruncated = true
-          }
-          
-          console.warn(`⚠️ Knowledge base truncated from ${knowledgeBase.length} to ${processedKnowledgeBase.length} characters`)
-        } else {
-          // If even base knowledge is too large, use only base without website content
-          processedKnowledgeBase = baseKnowledge + 
-            '\n\n[NOTE: Website content was omitted due to size limits. Using only base knowledge.]'
-          console.warn(`⚠️ Knowledge base too large. Using only base knowledge without website content.`)
-          wasTruncated = true
-        }
-      } else {
-        // No marker, just truncate the entire knowledge base at a safe point
-        processedKnowledgeBase = knowledgeBase.substring(0, MAX_INSTRUCTIONS_LENGTH) + 
-          '\n\n[NOTE: Content was truncated due to size limits.]'
-        console.warn(`⚠️ Knowledge base truncated from ${knowledgeBase.length} to ${processedKnowledgeBase.length} characters`)
-        wasTruncated = true
-      }
-    }
+    const { content: processedKnowledgeBase } = truncateKnowledgeBaseContent(knowledgeBase)
     
     const finalInstructions = `You are a helpful and knowledgeable customer service assistant.
 
@@ -747,8 +758,12 @@ CONVERSATION STYLE:
             <Textarea
               value={knowledgeBase}
               onChange={(e) => setKnowledgeBase(e.target.value)}
+              maxLength={MAX_INSTRUCTIONS_LENGTH}
               className="h-[400px] max-h-[400px] overflow-y-auto font-mono text-sm resize-none"
             />
+            <div className={`mt-2 text-xs text-right ${knowledgeBaseCounterClass}`}>
+              {knowledgeBase.length.toLocaleString()} / {MAX_INSTRUCTIONS_LENGTH.toLocaleString()} characters
+            </div>
           </Card>
         </motion.div>
       )}
