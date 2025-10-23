@@ -4,7 +4,7 @@
   "framework": null,
   "functions": {
     "api/clone.js": {
-      "maxDuration": 30
+      "maxDuration": 10
     },
     "api/voice-session.js": {
       "maxDuration": 10
@@ -13,7 +13,7 @@
       "maxDuration": 10
     },
     "api/firecrawl-scrape.js": {
-      "maxDuration": 60
+      "maxDuration": 10
     }
   },
   "rewrites": [

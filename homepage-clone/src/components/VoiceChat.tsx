@@ -162,6 +162,7 @@ export function VoiceChat() {
         maxPages = parseInt(crawlType.split('-')[1])
       }
 
+      // Start the crawl/scrape
       const response = await fetch('/api/firecrawl-scrape', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -174,18 +175,89 @@ export function VoiceChat() {
 
       const data = await response.json()
 
-      if (data.content) {
-        // Remove old website content if exists
-        let updatedKnowledge = knowledgeBase
-        const marker = '<!-- WEBSITE_CONTENT_MARKER -->'
+      if (!response.ok) {
+        throw new Error(data.error || `Request failed with status ${response.status}`)
+      }
 
-        if (updatedKnowledge.includes(marker)) {
-          updatedKnowledge = updatedKnowledge.split(marker)[0] + marker
+      // For scrape (single page), content is returned immediately
+      if (type === 'scrape' && data.content) {
+        processContent(data, type, maxPages)
+        return
+      }
+
+      // For crawl, we need to poll for completion
+      if (type === 'crawl' && data.jobId) {
+        setCrawlStatus(`⏳ Crawling ${maxPages} page(s)... This may take a minute.`)
+        await pollCrawlStatus(data.jobId, maxPages)
+      } else if (data.content) {
+        // Fallback if content was returned immediately
+        processContent(data, type, maxPages)
+      } else {
+        throw new Error('Unexpected response format from server')
+      }
+
+    } catch (error: any) {
+      setCrawlStatus('❌ Error: ' + error.message)
+      setIsCrawling(false)
+    }
+  }
+
+  const pollCrawlStatus = async (jobId: string, maxPages: number) => {
+    let attempts = 0
+    const maxAttempts = 60 // 5 minutes max
+
+    const checkStatus = async (): Promise<void> => {
+      attempts++
+
+      const statusResponse = await fetch('/api/firecrawl-scrape', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'crawl',
+          jobId: jobId,
+          url: websiteUrl // Include for validation
+        })
+      })
+
+      const statusData = await statusResponse.json()
+
+      if (statusData.status === 'completed' && statusData.content) {
+        // Crawl is complete
+        processContent(statusData, 'crawl', maxPages)
+        return
+      } else if (statusData.status === 'failed') {
+        throw new Error(statusData.error || 'Crawl job failed')
+      } else {
+        // Still in progress
+        const completed = statusData.completed || 0
+        const total = statusData.total || maxPages
+        setCrawlStatus(`⏳ Crawling... ${completed}/${total} pages processed. Please wait...`)
+
+        if (attempts >= maxAttempts) {
+          throw new Error('Crawl took too long (timeout after 5 minutes)')
         }
 
-        // Add new content
-        const crawlTypeLabel = type === 'scrape' ? 'Quick Scrape (1 page)' : `Crawl (up to ${maxPages} pages)`
-        const newContent = `
+        // Wait 5 seconds and check again
+        await new Promise(resolve => setTimeout(resolve, 5000))
+        return checkStatus()
+      }
+    }
+
+    await checkStatus()
+  }
+
+  const processContent = (data: any, type: string, maxPages: number) => {
+    // Remove old website content if exists
+    let updatedKnowledge = knowledgeBase
+    const marker = '<!-- WEBSITE_CONTENT_MARKER -->'
+
+    if (updatedKnowledge.includes(marker)) {
+      updatedKnowledge = updatedKnowledge.split(marker)[0] + marker
+    }
+
+    // Add new content
+    const crawlTypeLabel = type === 'scrape' ? 'Quick Scrape (1 page)' : `Crawl (up to ${maxPages} pages)`
+    const newContent = `
 ================================================================================
 WEBSITE CONTENT FROM: ${websiteUrl}
 Crawl Type: ${crawlTypeLabel}
@@ -199,26 +271,19 @@ ${data.content}
 ================================================================================
 END OF WEBSITE CONTENT`
 
-        updatedKnowledge = updatedKnowledge.replace(marker, marker + newContent)
-        const { content: limitedKnowledge, wasTruncated } = truncateKnowledgeBaseContent(updatedKnowledge)
-        setKnowledgeBase(limitedKnowledge)
+    updatedKnowledge = updatedKnowledge.replace(marker, marker + newContent)
+    const { content: limitedKnowledge, wasTruncated } = truncateKnowledgeBaseContent(updatedKnowledge)
+    setKnowledgeBase(limitedKnowledge)
 
-        let statusMessage = `✅ Success! ${data.pageCount} page(s) crawled (${data.creditsUsed} credits used).`
-        if (wasTruncated) {
-          statusMessage += ' ⚠️ Some website content was truncated to fit the 40,000 character limit.'
-        }
-        setCrawlStatus(statusMessage)
-
-        // Refresh credits
-        fetchCredits()
-      } else {
-        throw new Error('No content received')
-      }
-    } catch (error: any) {
-      setCrawlStatus('❌ Error: ' + error.message)
-    } finally {
-      setIsCrawling(false)
+    let statusMessage = `✅ Success! ${data.pageCount} page(s) crawled (${data.creditsUsed} credits used).`
+    if (wasTruncated) {
+      statusMessage += ' ⚠️ Some website content was truncated to fit the 40,000 character limit.'
     }
+    setCrawlStatus(statusMessage)
+    setIsCrawling(false)
+
+    // Refresh credits
+    fetchCredits()
   }
 
   const clearTranscript = () => {

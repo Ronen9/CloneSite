@@ -105,7 +105,69 @@ module.exports = async function handler(req, res) {
 
     // Handle Full Crawl (multiple pages)
     if (type === 'crawl') {
-      // Start the crawl with specified page limit
+      // Check if this is a status check request
+      const { jobId } = req.body;
+      
+      if (jobId) {
+        // This is a status check - poll the crawl job
+        const statusResponse = await fetch(`https://api.firecrawl.dev/v1/crawl/${jobId}`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${apiKey}`
+          }
+        });
+
+        if (!statusResponse.ok) {
+          return res.status(statusResponse.status).json({ 
+            error: `Status check failed with status ${statusResponse.status}` 
+          });
+        }
+
+        const statusData = await statusResponse.json();
+
+        if (statusData.status === 'completed') {
+          // Extract all content
+          let allContent = '';
+          let pageCount = 0;
+
+          if (statusData.data && Array.isArray(statusData.data)) {
+            pageCount = statusData.data.length;
+            statusData.data.forEach((page, index) => {
+              if (page.markdown) {
+                allContent += `\n\n--- PAGE ${index + 1}: ${page.metadata?.sourceURL || page.url || 'Unknown URL'} ---\n\n`;
+                allContent += page.markdown;
+              }
+            });
+          }
+
+          if (!allContent) {
+            return res.status(500).json({ error: 'No content extracted from crawled pages' });
+          }
+
+          return res.status(200).json({
+            success: true,
+            content: allContent,
+            pageCount: pageCount,
+            creditsUsed: pageCount,
+            type: 'crawl',
+            status: 'completed'
+          });
+        } else if (statusData.status === 'failed') {
+          return res.status(500).json({ 
+            error: 'Crawl job failed',
+            status: 'failed'
+          });
+        } else {
+          // Still in progress
+          return res.status(200).json({
+            status: statusData.status || 'processing',
+            completed: statusData.completed || 0,
+            total: statusData.total || maxPages
+          });
+        }
+      }
+      
+      // This is a new crawl request - start the job and return immediately
       const crawlResponse = await fetch('https://api.firecrawl.dev/v1/crawl', {
         method: 'POST',
         headers: {
@@ -131,79 +193,23 @@ module.exports = async function handler(req, res) {
       }
 
       const crawlData = await crawlResponse.json();
-      const jobId = crawlData.id;
+      const newJobId = crawlData.id;
 
-      if (!jobId) {
+      if (!newJobId) {
         return res.status(500).json({ error: 'No job ID returned from crawl request' });
       }
 
-      // Poll for completion (max 60 attempts = 5 minutes)
-      let attempts = 0;
-      const maxAttempts = 60;
-
-      const checkStatus = async () => {
-        attempts++;
-
-        const statusResponse = await fetch(`https://api.firecrawl.dev/v1/crawl/${jobId}`, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${apiKey}`
-          }
-        });
-
-        if (!statusResponse.ok) {
-          throw new Error(`Status check failed with status ${statusResponse.status}`);
-        }
-
-        const statusData = await statusResponse.json();
-
-        if (statusData.status === 'completed') {
-          // Extract all content
-          let allContent = '';
-          let pageCount = 0;
-
-          if (statusData.data && Array.isArray(statusData.data)) {
-            pageCount = statusData.data.length;
-            statusData.data.forEach((page, index) => {
-              if (page.markdown) {
-                allContent += `\n\n--- PAGE ${index + 1}: ${page.metadata?.sourceURL || page.url || 'Unknown URL'} ---\n\n`;
-                allContent += page.markdown;
-              }
-            });
-          }
-
-          if (!allContent) {
-            throw new Error('No content extracted from crawled pages');
-          }
-
-          return res.status(200).json({
-            success: true,
-            content: allContent,
-            pageCount: pageCount,
-            creditsUsed: pageCount,
-            type: 'crawl'
-          });
-
-        } else if (statusData.status === 'failed') {
-          throw new Error('Crawl job failed: ' + (statusData.error || 'Unknown error'));
-        } else {
-          // Still in progress
-          if (attempts < maxAttempts) {
-            // Wait 5 seconds and check again
-            await new Promise(resolve => setTimeout(resolve, 5000));
-            return checkStatus();
-          } else {
-            throw new Error('Crawl took too long (timeout after 5 minutes)');
-          }
-        }
-      };
-
-      // Start polling
-      return await checkStatus();
+      // Return job ID immediately for frontend polling
+      return res.status(200).json({
+        success: true,
+        jobId: newJobId,
+        status: 'started',
+        message: 'Crawl job started. Poll for status.'
+      });
     }
 
   } catch (error) {
-    console.error('Firecrawl scrape/crawl error:', error);
+    console.error('Firecrawl API error:', error);
     return res.status(500).json({ 
       error: 'Internal server error',
       message: error.message 
