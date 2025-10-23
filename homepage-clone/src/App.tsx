@@ -6,10 +6,13 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { SplashCursor } from '@/components/ui/splash-cursor'
-import { Globe, Code, Sparkle, WarningCircle } from '@phosphor-icons/react'
+import { Globe, Code, Sparkle, WarningCircle, Microphone } from '@phosphor-icons/react'
 import { motion, AnimatePresence } from 'framer-motion'
 
 function App() {
+  // Tab navigation state
+  const [activeTab, setActiveTab] = useState<'clone' | 'voice'>('clone')
+  
   // Replaced Spark KV (was causing 401 Unauthorized) with local state + localStorage persistence
   const [url, setUrl] = useState<string>(() => localStorage.getItem('website-url') || '')
   const [script, setScript] = useState<string>(() => localStorage.getItem('chat-script') || '')
@@ -130,6 +133,39 @@ function App() {
               transition={{ duration: 0.4 }}
               className="w-full max-w-2xl"
             >
+              {/* Tab Navigation */}
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+                className="flex gap-2 mb-4 p-1 bg-white/30 backdrop-blur-md rounded-lg shadow-lg"
+              >
+                <button
+                  onClick={() => setActiveTab('clone')}
+                  className={`flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-md font-medium transition-all duration-200 ${
+                    activeTab === 'clone'
+                      ? 'bg-white shadow-md text-primary'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-white/50'
+                  }`}
+                >
+                  <Globe weight={activeTab === 'clone' ? 'fill' : 'regular'} size={20} />
+                  Clone Site
+                </button>
+                <button
+                  onClick={() => setActiveTab('voice')}
+                  className={`flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-md font-medium transition-all duration-200 ${
+                    activeTab === 'voice'
+                      ? 'bg-white shadow-md text-primary'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-white/50'
+                  }`}
+                >
+                  <Microphone weight={activeTab === 'voice' ? 'fill' : 'regular'} size={20} />
+                  Voice Chat
+                </button>
+              </motion.div>
+
+              {/* Clone Site Tab Content */}
+              {activeTab === 'clone' && (
               <Card className="backdrop-blur-xl bg-card/70 shadow-2xl border-white/20 p-8 md:p-10">
                 <div className="space-y-8">
                   <div className="space-y-3">
@@ -206,6 +242,18 @@ function App() {
                   </div>
                 </div>
               </Card>
+              )}
+
+              {/* Voice Chat Tab Content */}
+              {activeTab === 'voice' && (
+                <Card className="backdrop-blur-xl bg-card/70 shadow-2xl border-white/20 p-8 md:p-10">
+                  <div className="text-center space-y-4">
+                    <Microphone size={48} weight="duotone" className="mx-auto text-primary" />
+                    <h2 className="text-2xl font-semibold">Voice Chat</h2>
+                    <p className="text-muted-foreground">Voice chat functionality coming soon...</p>
+                  </div>
+                </Card>
+              )}
             </motion.div>
           ) : null}
         </AnimatePresence>
