@@ -1,7 +1,7 @@
 // Vercel serverless function for cloning websites
 const axios = require('axios');
 
-const firecrawlApiKey = process.env.FIRECRAWL_API_KEY || "fc-0515511a88e4440292549c718ed2821a";
+const firecrawlApiKey = process.env.FIRECRAWL_API_KEY;
 
 // Helper: only inject a chat script if user provided one (no default anymore)
 function getChatScriptToInject(userScript) {
@@ -96,6 +96,10 @@ module.exports = async function handler(req, res) {
 
     if (!url) {
       return res.status(400).json({ error: 'URL is required' });
+    }
+
+    if (!firecrawlApiKey) {
+      return res.status(500).json({ error: 'Server configuration error. Missing FIRECRAWL_API_KEY.' });
     }
 
     try {
