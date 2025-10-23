@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { SplashCursor } from '@/components/ui/splash-cursor'
+import { VoiceChat } from '@/components/VoiceChat'
 import { Globe, Code, Sparkle, WarningCircle, Microphone } from '@phosphor-icons/react'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -246,13 +247,7 @@ function App() {
 
               {/* Voice Chat Tab Content */}
               {activeTab === 'voice' && (
-                <Card className="backdrop-blur-xl bg-card/70 shadow-2xl border-white/20 p-8 md:p-10">
-                  <div className="text-center space-y-4">
-                    <Microphone size={48} weight="duotone" className="mx-auto text-primary" />
-                    <h2 className="text-2xl font-semibold">Voice Chat</h2>
-                    <p className="text-muted-foreground">Voice chat functionality coming soon...</p>
-                  </div>
-                </Card>
+                <VoiceChat />
               )}
             </motion.div>
           ) : null}
