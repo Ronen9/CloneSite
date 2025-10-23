@@ -130,6 +130,18 @@ export function VoiceChat() {
   const fetchCredits = async () => {
     try {
       const response = await fetch('/api/firecrawl-credits')
+
+      if (!response.ok) {
+        // Handle timeout or error responses
+        if (response.status === 504) {
+          console.warn('Credits fetch timeout - server took too long to respond')
+          setCredits(null)
+          setPlanCredits(null)
+          return
+        }
+        throw new Error(`Failed to fetch credits: ${response.status}`)
+      }
+
       const data = await response.json()
       setCredits(data.remainingCredits)
       setPlanCredits(data.planCredits)
@@ -173,11 +185,28 @@ export function VoiceChat() {
         })
       })
 
-      const data = await response.json()
-
       if (!response.ok) {
-        throw new Error(data.error || `Request failed with status ${response.status}`)
+        // Handle timeout errors specifically
+        if (response.status === 504) {
+          throw new Error('Request timeout. The server took too long to respond. Please try again or use a smaller page limit.')
+        }
+
+        // Try to parse error message from JSON
+        let errorMessage = `Request failed with status ${response.status}`
+        try {
+          const data = await response.json()
+          errorMessage = data.error || errorMessage
+        } catch (parseError) {
+          // Response is not JSON (likely HTML error page)
+          const text = await response.text()
+          if (text.includes('FUNCTION_INVOCATION_TIMEOUT')) {
+            errorMessage = 'Function timeout. The crawl is taking too long. Try reducing the number of pages.'
+          }
+        }
+        throw new Error(errorMessage)
       }
+
+      const data = await response.json()
 
       // For scrape (single page), content is returned immediately
       if (type === 'scrape' && data.content) {

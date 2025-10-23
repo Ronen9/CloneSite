@@ -4,16 +4,16 @@
   "framework": null,
   "functions": {
     "api/clone.js": {
-      "maxDuration": 10
+      "maxDuration": 60
     },
     "api/voice-session.js": {
       "maxDuration": 10
     },
     "api/firecrawl-credits.js": {
-      "maxDuration": 10
+      "maxDuration": 30
     },
     "api/firecrawl-scrape.js": {
-      "maxDuration": 10
+      "maxDuration": 60
     }
   },
   "rewrites": [
