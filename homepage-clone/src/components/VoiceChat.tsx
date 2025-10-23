@@ -25,27 +25,33 @@ const truncateKnowledgeBaseContent = (knowledgeBase: string) => {
     const websiteContent = parts[1]
     const remainingSpace = MAX_INSTRUCTIONS_LENGTH - baseKnowledge.length - 300
 
-    if (remainingSpace > 1000) {
+    if (remainingSpace > 500) {
+      // We have space for at least some website content
       const truncatedContent = websiteContent.substring(0, Math.max(0, remainingSpace))
       const lastPageMarker = truncatedContent.lastIndexOf('--- PAGE')
 
       if (lastPageMarker > 0) {
+        // Truncate at page boundary to keep complete pages
         const cleanTruncatedContent = truncatedContent.substring(0, lastPageMarker)
         processedKnowledgeBase = baseKnowledge + cleanTruncatedContent +
-          '\n\n[NOTE: Additional website content was truncated due to size limits. The information above represents partial crawled data. For complete information, please refer customers to the website or contact details provided above.]'
+          '\n\n[NOTE: Additional website content was truncated due to size limits. The information above represents partial crawled data from the first pages. For complete information, please refer customers to the website or contact details provided above.]'
         wasTruncated = true
-        console.warn(`⚠️ Knowledge base truncated from ${knowledgeBase.length} to ${processedKnowledgeBase.length} characters`)
+        console.warn(`⚠️ Knowledge base truncated from ${knowledgeBase.length} to ${processedKnowledgeBase.length} characters (kept ${lastPageMarker} chars of website content)`)
       } else {
-        processedKnowledgeBase = baseKnowledge +
-          '\n\n[NOTE: Website content was omitted due to size limits. Using only base knowledge.]'
+        // No page markers, just truncate cleanly at word boundary
+        const lastSpace = truncatedContent.lastIndexOf(' ')
+        const cleanContent = lastSpace > 0 ? truncatedContent.substring(0, lastSpace) : truncatedContent
+        processedKnowledgeBase = baseKnowledge + cleanContent +
+          '\n\n[NOTE: Website content was truncated due to size limits. The information above represents partial crawled data. For complete information, please refer customers to the website or contact details provided above.]'
         wasTruncated = true
-        console.warn('⚠️ Website content too large. Using only base knowledge without website content.')
+        console.warn(`⚠️ Knowledge base truncated from ${knowledgeBase.length} to ${processedKnowledgeBase.length} characters (kept ${cleanContent.length} chars of website content)`)
       }
     } else {
+      // Not enough space for website content, but this should rarely happen
       processedKnowledgeBase = baseKnowledge +
-        '\n\n[NOTE: Website content was omitted due to size limits. Using only base knowledge.]'
+        '\n\n[NOTE: Website content was omitted due to size limits. Base knowledge only contains less than 500 characters of space. Consider reducing base instructions.]'
       wasTruncated = true
-      console.warn('⚠️ Knowledge base too large. Using only base knowledge without website content.')
+      console.warn(`⚠️ Knowledge base has only ${remainingSpace} chars remaining. Website content omitted.`)
     }
   } else {
     processedKnowledgeBase = knowledgeBase.substring(0, MAX_INSTRUCTIONS_LENGTH) +
