@@ -195,10 +195,23 @@ export function VoiceChat() {
         let errorMessage = `Request failed with status ${response.status}`
         try {
           const data = await response.json()
-          errorMessage = data.error || errorMessage
+          // Include all error details from server
+          if (data.error) {
+            errorMessage = data.error
+            if (data.message && data.message !== data.error) {
+              errorMessage += `: ${data.message}`
+            }
+            if (data.details) {
+              errorMessage += ` (Details: ${data.details})`
+            }
+            if (data.responseKeys) {
+              console.error('Server response keys:', data.responseKeys)
+            }
+          }
         } catch (parseError) {
           // Response is not JSON (likely HTML error page)
           const text = await response.text()
+          console.error('Non-JSON error response:', text.substring(0, 200))
           if (text.includes('FUNCTION_INVOCATION_TIMEOUT')) {
             errorMessage = 'Function timeout. The crawl is taking too long. Try reducing the number of pages.'
           }
