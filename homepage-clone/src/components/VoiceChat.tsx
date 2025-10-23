@@ -508,13 +508,26 @@ CONVERSATION STYLE:
       // 1. Create RTCPeerConnection
       const peerConnection = new RTCPeerConnection()
       peerConnectionRef.current = peerConnection
-      
+
+      // Log connection state changes
+      peerConnection.onconnectionstatechange = () => {
+        console.log('📡 Connection state:', peerConnection.connectionState)
+      }
+
+      peerConnection.oniceconnectionstatechange = () => {
+        console.log('🧊 ICE connection state:', peerConnection.iceConnectionState)
+      }
+
+      peerConnection.onicegatheringstatechange = () => {
+        console.log('🧊 ICE gathering state:', peerConnection.iceGatheringState)
+      }
+
       // 2. Set up audio playback
       const audioElement = document.createElement('audio')
       audioElement.autoplay = true
       audioElementRef.current = audioElement
       document.body.appendChild(audioElement)
-      
+
       peerConnection.ontrack = (event) => {
         audioElement.srcObject = event.streams[0]
         console.log('🔊 Audio stream connected')
@@ -540,12 +553,19 @@ CONVERSATION STYLE:
         console.log('✅ Data channel is open')
         updateSession(dataChannel)
       })
-      
+
       dataChannel.addEventListener('message', handleDataChannelMessage)
-      
+
       dataChannel.addEventListener('close', () => {
         console.log('📴 Data channel closed')
       })
+
+      dataChannel.addEventListener('error', (error) => {
+        console.error('❌ Data channel error:', error)
+      })
+
+      // Log data channel state changes
+      console.log('📊 Data channel created, readyState:', dataChannel.readyState)
       
       // 5. Establish WebRTC connection
       const offer = await peerConnection.createOffer()
