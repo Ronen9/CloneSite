@@ -559,11 +559,17 @@ CONVERSATION STYLE:
 
       // Use endpoint and deployment from session data ref
       const sessionData = sessionDataRef.current
+      console.log('📦 Session data:', sessionData)
+
       if (!sessionData?.endpoint || !sessionData?.deployment) {
+        console.error('❌ Missing endpoint or deployment:', { endpoint: sessionData?.endpoint, deployment: sessionData?.deployment })
         throw new Error('Missing WebRTC endpoint or deployment information')
       }
 
-      const sdpResponse = await fetch(`${sessionData.endpoint}?model=${sessionData.deployment}`, {
+      const webrtcUrl = `${sessionData.endpoint}?model=${sessionData.deployment}`
+      console.log('🌐 Connecting to WebRTC endpoint:', webrtcUrl)
+
+      const sdpResponse = await fetch(webrtcUrl, {
         method: 'POST',
         body: offer.sdp,
         headers: {
@@ -572,16 +578,22 @@ CONVERSATION STYLE:
         }
       })
 
+      console.log('📡 WebRTC response status:', sdpResponse.status)
+
       if (!sdpResponse.ok) {
-        throw new Error('WebRTC connection failed: ' + sdpResponse.status)
+        const errorText = await sdpResponse.text()
+        console.error('❌ WebRTC connection failed:', sdpResponse.status, errorText)
+        throw new Error(`WebRTC connection failed: ${sdpResponse.status} - ${errorText}`)
       }
 
       const answer = { type: 'answer' as RTCSdpType, sdp: await sdpResponse.text() }
       await peerConnection.setRemoteDescription(answer)
 
+      console.log('✅ Connected! You can now speak to the assistant.')
       setIsSessionActive(true)
     } catch (error: any) {
-      console.error('Error initializing WebRTC:', error)
+      console.error('❌ Error initializing WebRTC:', error)
+      console.error('Error details:', error.message, error)
       setIsSessionActive(false)
       throw error
     }
@@ -618,10 +630,13 @@ CONVERSATION STYLE:
       // Store complete session data for WebRTC initialization
       sessionDataRef.current = data
 
+      console.log('🚀 Starting WebRTC initialization...')
       await initializeWebRTC(ephemeralKey)
     } catch (error: any) {
-      console.error('Error starting voice session:', error)
-      alert('Error: ' + error.message)
+      console.error('❌ Error starting voice session:', error)
+      console.error('Error message:', error.message)
+      console.error('Error stack:', error.stack)
+      alert('❌ Error: ' + error.message)
       setIsSessionActive(false)
     }
   }
