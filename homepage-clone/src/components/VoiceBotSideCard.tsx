@@ -346,43 +346,110 @@ END OF WEBSITE CONTENT`
   }
 
   const handleDataChannelMessage = (event: MessageEvent) => {
-    const realtimeEvent = JSON.parse(event.data)
+    const message = JSON.parse(event.data)
 
-    if (realtimeEvent.type === 'conversation.item.input_audio_transcription.completed') {
-      const userText = realtimeEvent.transcript
-      if (userText && userText.trim()) {
+    console.log('📩 Received event:', message.type, message)
+
+    // Handle user transcription
+    if (message.type === 'conversation.item.input_audio_transcription.completed') {
+      const userText = message.transcript?.trim()
+      if (userText) {
+        console.log('👤 User said:', userText)
         addToTranscript('user', userText)
       }
-    } else if (realtimeEvent.type === 'response.audio_transcript.delta') {
-      const delta = realtimeEvent.delta
-      if (delta) {
-        currentBetiResponse.current += delta
-      }
-    } else if (realtimeEvent.type === 'response.audio_transcript.done') {
+    }
+
+    // Handle Beti's response (accumulate deltas)
+    else if (message.type === 'response.audio_transcript.delta') {
+      currentBetiResponse.current += message.delta
+    }
+
+    // When response is done, add the complete Beti message
+    else if (message.type === 'response.audio_transcript.done') {
       if (currentBetiResponse.current.trim()) {
+        console.log('🤖 Beti said:', currentBetiResponse.current.trim())
         addToTranscript('beti', currentBetiResponse.current.trim())
         currentBetiResponse.current = ''
       }
       setIsSpeaking(false)
-    } else if (realtimeEvent.type === 'response.audio.delta') {
+    }
+
+    // Track when Beti is speaking (audio being generated)
+    else if (message.type === 'response.audio.delta') {
       setIsSpeaking(true)
+    }
+
+    // Log session events
+    else if (message.type === 'session.created') {
+      console.log('✅ Session created successfully')
+    } else if (message.type === 'session.updated') {
+      console.log('✅ Session updated with configuration and transcription enabled')
+    } else if (message.type === 'error') {
+      const errorMessage = message.error?.message || 'Unknown error'
+      console.error('❌ Session error:', message.error)
+
+      // Don't alert for transcription-related errors, just log them
+      if (errorMessage.includes('truncated') || errorMessage.includes('audio messages')) {
+        console.warn('⚠️ Transcription error (non-critical):', errorMessage)
+      } else {
+        alert('Session Error: ' + errorMessage)
+      }
     }
   }
 
-  const buildSystemInstructions = () => {
-    let instructions = knowledgeBase
-
+  const buildSystemInstructions = (): string => {
+    let languageInstruction = ''
     if (language === 'hebrew') {
-      instructions += '\n\nחשוב מאוד: תענה רקרק בעברית. כל תשובה חייבת להיות בעברית בלבד.'
+      languageInstruction = 'Always respond in Hebrew (עברית). You are fluent in Hebrew and should communicate naturally in Hebrew.'
     } else if (language === 'english') {
-      instructions += '\n\nIMPORTANT: Respond ONLY in English. Every response must be in English only.'
+      languageInstruction = 'Always respond in English.'
+    } else if (language === 'auto') {
+      languageInstruction = 'Automatically detect and respond in the same language the user speaks. If they speak Hebrew, respond in Hebrew. If they speak English, respond in English. If they speak Spanish, respond in Spanish. Match the user\'s language naturally.'
     }
 
+    let strictModeInstruction = ''
     if (strictMode) {
-      instructions += '\n\nחשוב מאוד: ענה רק על בסיס המידע שבבסיס הידע שלך. אם אין מידע רלוונטי, תגיד "אין לי מידע על כך בבסיס הידע שלי."'
+      strictModeInstruction = `
+STRICT MODE - KNOWLEDGE BASE ONLY:
+- You MUST ONLY use information from the knowledge base provided above
+- DO NOT use any external knowledge, general knowledge, or information from the internet
+- If the answer is not in the knowledge base, respond with: "I don't have that specific information in my knowledge base. Let me connect you with a human representative who can help."
+- Never make assumptions or provide information not explicitly stated in the knowledge base
+- This is critical: ONLY answer from the knowledge base, nothing else`
+    } else {
+      strictModeInstruction = `
+FLEXIBLE MODE:
+- Primarily use the knowledge base above for company-specific information
+- You can supplement with general knowledge when appropriate
+- If information is not in the knowledge base but you know the answer from general knowledge, you may provide it
+- Always prioritize knowledge base information for company-specific questions`
     }
 
-    return instructions
+    const { content: processedKnowledgeBase } = truncateKnowledgeBaseContent(knowledgeBase)
+
+    const finalInstructions = `You are a helpful and knowledgeable customer service assistant.
+
+${languageInstruction}
+
+KNOWLEDGE BASE:
+${processedKnowledgeBase}
+
+${strictModeInstruction}
+
+INSTRUCTIONS:
+- Be friendly, professional, and conversational
+- Keep responses concise but complete
+- Always prioritize accuracy over guessing
+
+CONVERSATION STYLE:
+- Be warm and empathetic
+- Use natural, conversational language
+- Speak at a moderate pace
+- Be patient and understanding`
+
+    console.log(`📊 Instructions size: ${finalInstructions.length} characters (~${Math.round(finalInstructions.length / 4)} tokens)`)
+
+    return finalInstructions
   }
 
   const updateSession = (dataChannel: RTCDataChannel) => {
@@ -433,6 +500,19 @@ END OF WEBSITE CONTENT`
       const peerConnection = new RTCPeerConnection()
       peerConnectionRef.current = peerConnection
 
+      // Log connection state changes
+      peerConnection.onconnectionstatechange = () => {
+        console.log('📡 Connection state:', peerConnection.connectionState)
+      }
+
+      peerConnection.oniceconnectionstatechange = () => {
+        console.log('🧊 ICE connection state:', peerConnection.iceConnectionState)
+      }
+
+      peerConnection.onicegatheringstatechange = () => {
+        console.log('🧊 ICE gathering state:', peerConnection.iceGatheringState)
+      }
+
       const audioElement = document.createElement('audio')
       audioElement.autoplay = true
       audioElementRef.current = audioElement
@@ -440,15 +520,17 @@ END OF WEBSITE CONTENT`
 
       peerConnection.ontrack = (event) => {
         audioElement.srcObject = event.streams[0]
+        console.log('🔊 Audio stream connected')
       }
 
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
         const audioTrack = stream.getAudioTracks()[0]
         peerConnection.addTrack(audioTrack)
+        console.log('🎤 Microphone access granted')
       } catch (error: any) {
-        console.error('Microphone access denied:', error)
-        alert('Microphone access denied: ' + error.message)
+        console.error('❌ Microphone access denied:', error)
+        alert('❌ Microphone access denied: ' + error.message)
         throw error
       }
 
@@ -456,10 +538,21 @@ END OF WEBSITE CONTENT`
       dataChannelRef.current = dataChannel
 
       dataChannel.addEventListener('open', () => {
+        console.log('✅ Data channel is open')
         updateSession(dataChannel)
       })
 
       dataChannel.addEventListener('message', handleDataChannelMessage)
+
+      dataChannel.addEventListener('close', () => {
+        console.log('📴 Data channel closed')
+      })
+
+      dataChannel.addEventListener('error', (error) => {
+        console.error('❌ Data channel error:', error)
+      })
+
+      console.log('📊 Data channel created, readyState:', dataChannel.readyState)
 
       const offer = await peerConnection.createOffer()
       await peerConnection.setLocalDescription(offer)
@@ -534,6 +627,7 @@ END OF WEBSITE CONTENT`
   }
 
   const endVoiceSession = () => {
+    // Close data channel first
     if (dataChannelRef.current) {
       try {
         dataChannelRef.current.close()
@@ -543,8 +637,10 @@ END OF WEBSITE CONTENT`
       dataChannelRef.current = null
     }
 
+    // Close peer connection
     if (peerConnectionRef.current) {
       try {
+        // Stop all tracks
         peerConnectionRef.current.getSenders().forEach(sender => {
           if (sender.track) {
             sender.track.stop()
@@ -557,8 +653,11 @@ END OF WEBSITE CONTENT`
       peerConnectionRef.current = null
     }
 
+    // Remove audio element
     if (audioElementRef.current) {
       try {
+        audioElementRef.current.pause()
+        audioElementRef.current.srcObject = null
         audioElementRef.current.remove()
       } catch (e) {
         console.warn('Error removing audio element:', e)
@@ -566,10 +665,13 @@ END OF WEBSITE CONTENT`
       audioElementRef.current = null
     }
 
+    // Reset response accumulator
     currentBetiResponse.current = ''
-    setIsSessionActive(false)
+
     setIsSessionEnded(true)
+    setIsSessionActive(false)
     setIsSpeaking(false)
+    console.log('🛑 Session ended and cleaned up')
   }
 
   return (
