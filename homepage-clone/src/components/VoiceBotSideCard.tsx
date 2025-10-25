@@ -125,6 +125,7 @@ export function VoiceBotSideCard() {
   const audioElementRef = useRef<HTMLAudioElement | null>(null)
   const currentBetiResponse = useRef<string>('')
   const transcriptContainerRef = useRef<HTMLDivElement>(null)
+  const sessionDataRef = useRef<any>(null)
 
   // Fetch credits on mount if strict mode
   useEffect(() => {
@@ -427,7 +428,7 @@ END OF WEBSITE CONTENT`
     }, 1000)
   }
 
-  const initializeWebRTC = async (ephemeralKey: string, sessionData: any) => {
+  const initializeWebRTC = async (ephemeralKey: string) => {
     try {
       const peerConnection = new RTCPeerConnection()
       peerConnectionRef.current = peerConnection
@@ -463,10 +464,13 @@ END OF WEBSITE CONTENT`
       const offer = await peerConnection.createOffer()
       await peerConnection.setLocalDescription(offer)
 
-      const endpoint = sessionData.endpoint
-      const deployment = sessionData.deployment
+      // Use endpoint and deployment from session data ref
+      const sessionData = sessionDataRef.current
+      if (!sessionData?.endpoint || !sessionData?.deployment) {
+        throw new Error('Missing WebRTC endpoint or deployment information')
+      }
 
-      const sdpResponse = await fetch(`${endpoint}?model=${deployment}`, {
+      const sdpResponse = await fetch(`${sessionData.endpoint}?model=${sessionData.deployment}`, {
         method: 'POST',
         body: offer.sdp,
         headers: {
@@ -518,7 +522,10 @@ END OF WEBSITE CONTENT`
         throw new Error('No ephemeral key received from server')
       }
 
-      await initializeWebRTC(ephemeralKey, data)
+      // Store complete session data for WebRTC initialization
+      sessionDataRef.current = data
+
+      await initializeWebRTC(ephemeralKey)
     } catch (error: any) {
       console.error('Error starting voice session:', error)
       alert('Error: ' + error.message)
