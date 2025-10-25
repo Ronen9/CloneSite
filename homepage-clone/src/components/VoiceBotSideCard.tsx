@@ -718,9 +718,10 @@ END OF WEBSITE CONTENT`
                     initial={{ scale: 0.9, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     exit={{ scale: 0.9, opacity: 0 }}
-                    className="bg-white rounded-lg shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+                    className="bg-white rounded-lg shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col"
                   >
-                    <div className="p-6 space-y-6">
+                    {/* Sticky Header */}
+                    <div className="sticky top-0 bg-white z-10 p-6 pb-4 border-b border-gray-200">
                       <div className="flex items-center justify-between">
                         <h2 className="text-2xl font-bold">Settings</h2>
                         <Button
@@ -730,6 +731,10 @@ END OF WEBSITE CONTENT`
                           <X size={24} />
                         </Button>
                       </div>
+                    </div>
+
+                    {/* Scrollable Content */}
+                    <div className="overflow-y-auto p-6 pt-4 space-y-6">
 
                       {/* Knowledge Base Configuration */}
                       <div className="space-y-4">
@@ -855,7 +860,7 @@ END OF WEBSITE CONTENT`
                             <Textarea
                               value={knowledgeBase}
                               onChange={(e) => setKnowledgeBase(e.target.value)}
-                              className="min-h-[300px] font-mono text-sm"
+                              className="h-[400px] max-h-[400px] overflow-y-auto font-mono text-sm resize-none"
                               maxLength={40000}
                             />
                             <div className={`text-sm text-right ${knowledgeBase.length > 38000 ? 'text-red-600 font-bold' : knowledgeBase.length > 35000 ? 'text-orange-600' : 'text-gray-500'}`}>
@@ -914,6 +919,7 @@ END OF WEBSITE CONTENT`
                         </div>
                       </div>
                     </div>
+                    {/* End of scrollable content */}
                   </motion.div>
                 </motion.div>
               )}
