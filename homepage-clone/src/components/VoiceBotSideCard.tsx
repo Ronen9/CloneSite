@@ -784,7 +784,7 @@ CONVERSATION STYLE:
                 </div>
 
                 {/* Transcript */}
-                <Card className="p-4 min-h-[400px] max-h-[500px] overflow-y-auto bg-gray-50" ref={transcriptContainerRef}>
+                <Card className="p-4 min-h-[300px] max-h-[380px] overflow-y-auto bg-gray-50" ref={transcriptContainerRef}>
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="font-semibold text-sm">Conversation</h3>
                     <Button
@@ -821,6 +821,35 @@ CONVERSATION STYLE:
                     </div>
                   )}
                 </Card>
+
+                {/* Speaking Indicator */}
+                <AnimatePresence>
+                  {isSpeaking && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      className="flex items-center justify-center gap-1 p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg border border-purple-200"
+                    >
+                      <span className="text-sm font-medium text-purple-700 mr-3">Beti is speaking</span>
+                      {[...Array(5)].map((_, i) => (
+                        <motion.div
+                          key={i}
+                          className="w-1 bg-gradient-to-t from-purple-600 to-blue-600 rounded-full"
+                          animate={{
+                            height: ['12px', '24px', '12px'],
+                          }}
+                          transition={{
+                            duration: 0.6,
+                            repeat: Infinity,
+                            delay: i * 0.1,
+                            ease: 'easeInOut',
+                          }}
+                        />
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             </motion.div>
 
