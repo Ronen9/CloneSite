@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { SplashCursor } from '@/components/ui/splash-cursor'
 import { VoiceChat } from '@/components/VoiceChat'
+import { VoiceBotSideCard } from '@/components/VoiceBotSideCard'
 import { Globe, Code, Sparkle, WarningCircle, Microphone } from '@phosphor-icons/react'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -120,6 +121,8 @@ function App() {
               className="w-full h-full border-0"
               title="Cloned Website"
             />
+            {/* VoiceBot Side Card - Only shown when website is cloned */}
+            <VoiceBotSideCard />
           </motion.div>
         )}
       </AnimatePresence>
