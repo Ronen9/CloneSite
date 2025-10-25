@@ -371,13 +371,28 @@ app.post('/api/voice-session', async (req, res) => {
     const deployment = process.env.AZURE_OPENAI_DEPLOYMENT;
 
     if (!apiKey || !endpoint || !deployment) {
-      return res.status(500).json({ error: 'Missing Azure OpenAI configuration' });
+      console.error('Missing environment variables:', {
+        hasApiKey: !!apiKey,
+        hasEndpoint: !!endpoint,
+        hasDeployment: !!deployment
+      });
+      return res.status(500).json({ error: 'Server configuration error. Missing required environment variables.' });
     }
 
-    const { voice = 'coral' } = req.body;
+    const { voice = 'coral', temperature = 0.7, instructions = '' } = req.body;
+
+    // Validate voice
+    const validVoices = ['alloy', 'echo', 'shimmer', 'ash', 'ballad', 'coral', 'sage', 'verse'];
+    if (!validVoices.includes(voice)) {
+      return res.status(400).json({ error: `Invalid voice. Must be one of: ${validVoices.join(', ')}` });
+    }
+
+    if (temperature < 0 || temperature > 1) {
+      return res.status(400).json({ error: 'Invalid temperature. Must be between 0 and 1.' });
+    }
 
     const sessionUrl = `${endpoint}/openai/realtimeapi/sessions?api-version=2025-04-01-preview`;
-    
+
     const sessionResponse = await axios.post(sessionUrl, {
       model: deployment,
       voice: voice
@@ -388,18 +403,80 @@ app.post('/api/voice-session', async (req, res) => {
       }
     });
 
+    if (!sessionResponse.data) {
+      return res.status(500).json({ error: 'Failed to create voice session' });
+    }
+
     const sessionId = sessionResponse.data.id;
     const ephemeralKey = sessionResponse.data.client_secret?.value;
 
     if (!sessionId || !ephemeralKey) {
-      return res.status(500).json({ error: 'Failed to extract session credentials' });
+      console.error('Invalid session response:', sessionResponse.data);
+      return res.status(500).json({ error: 'Failed to extract session credentials from Azure response' });
     }
+
+    // Determine WebRTC region
+    let region = process.env.AZURE_OPENAI_REGION || 'eastus2';
+
+    if (!process.env.AZURE_OPENAI_REGION) {
+      try {
+        const endpointUrl = new URL(endpoint);
+        const resourceName = endpointUrl.hostname.split('.')[0];
+
+        const regionMapping = {
+          'sweden': 'swedencentral',
+          'us': 'eastus',
+          'east': 'eastus',
+          'west': 'westus',
+          'europe': 'westeurope',
+          'uk': 'uksouth',
+          'australia': 'australiaeast',
+          'canada': 'canadaeast',
+          'france': 'francecentral',
+          'japan': 'japaneast',
+          'korea': 'koreacentral'
+        };
+
+        for (const [key, value] of Object.entries(regionMapping)) {
+          if (resourceName.toLowerCase().includes(key)) {
+            region = value;
+            console.log(`Detected region '${region}' from resource name '${resourceName}'`);
+            break;
+          }
+        }
+
+        const azureResource = process.env.AZURE_OPENAI_RESOURCE;
+        if (azureResource) {
+          for (const [key, value] of Object.entries(regionMapping)) {
+            if (azureResource.toLowerCase().includes(key)) {
+              region = value;
+              console.log(`Detected region '${region}' from AZURE_OPENAI_RESOURCE '${azureResource}'`);
+              break;
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('Could not parse Azure endpoint for region detection, using default:', region);
+      }
+    }
+
+    const webrtcEndpoint = `https://${region}.realtimeapi-preview.ai.azure.com/v1/realtimertc`;
+    console.log('=== Voice Session Debug Info ===');
+    console.log(`WebRTC endpoint: ${webrtcEndpoint}`);
+    console.log(`Deployment: ${deployment}`);
+    console.log(`Azure endpoint: ${endpoint}`);
+    console.log(`Region: ${region}`);
+    console.log(`Session ID: ${sessionId}`);
+    console.log('================================');
 
     res.json({
       success: true,
       sessionId: sessionId,
       ephemeralKey: ephemeralKey,
-      deployment: deployment
+      deployment: deployment,
+      endpoint: webrtcEndpoint,
+      region: region,
+      azureEndpoint: endpoint
     });
   } catch (error) {
     console.error('Voice session error:', error.message);
