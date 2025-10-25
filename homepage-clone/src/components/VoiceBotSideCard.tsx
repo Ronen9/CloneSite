@@ -196,7 +196,7 @@ export function VoiceBotSideCard() {
     }, 1000)
   }
 
-  const initializeWebRTC = async (ephemeralKey: string) => {
+  const initializeWebRTC = async (ephemeralKey: string, sessionData: any) => {
     try {
       const peerConnection = new RTCPeerConnection()
       peerConnectionRef.current = peerConnection
@@ -232,25 +232,14 @@ export function VoiceBotSideCard() {
       const offer = await peerConnection.createOffer()
       await peerConnection.setLocalDescription(offer)
 
-      const response = await fetch('/api/voice-session', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ voice, temperature, instructions: buildSystemInstructions() })
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to create voice session: ' + response.status)
-      }
-
-      const data = await response.json()
-      const endpoint = data.endpoint
-      const deployment = data.deployment
+      const endpoint = sessionData.endpoint
+      const deployment = sessionData.deployment
 
       const sdpResponse = await fetch(`${endpoint}?model=${deployment}`, {
         method: 'POST',
         body: offer.sdp,
         headers: {
-          Authorization: `Bearer ${ephemeralKey || data.ephemeralKey}`,
+          Authorization: `Bearer ${ephemeralKey}`,
           'Content-Type': 'application/sdp'
         }
       })
@@ -298,7 +287,7 @@ export function VoiceBotSideCard() {
         throw new Error('No ephemeral key received from server')
       }
 
-      await initializeWebRTC(ephemeralKey)
+      await initializeWebRTC(ephemeralKey, data)
     } catch (error: any) {
       console.error('Error starting voice session:', error)
       alert('Error: ' + error.message)
@@ -511,7 +500,141 @@ export function VoiceBotSideCard() {
                         </Button>
                       </div>
 
-                      {/* Voice Settings */}
+                      {/* Knowledge Base Configuration */}
+                      <div className="space-y-4">
+                        <h3 className="text-lg font-semibold flex items-center gap-2">
+                          <Fire weight="fill" size={20} className="text-orange-500" />
+                          Knowledge Base Configuration
+                        </h3>
+
+                        {/* Strict Mode Toggle */}
+                        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-md">
+                          <div>
+                            <Label className="font-medium">Knowledge Base Only Mode</Label>
+                            <p className="text-sm text-gray-600">Limit responses to knowledge base content only</p>
+                          </div>
+                          <label className="relative inline-flex items-center cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={strictMode}
+                              onChange={(e) => setStrictMode(e.target.checked)}
+                              className="sr-only peer"
+                            />
+                            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                          </label>
+                        </div>
+
+                        {/* Firecrawl Integration - Only shown when strict mode is ON */}
+                        {strictMode && (
+                          <Card className="p-4 bg-orange-50 border-orange-200">
+                            <h4 className="font-semibold mb-2 flex items-center gap-2">
+                              <Fire weight="fill" size={18} className="text-orange-500" />
+                              Firecrawl - Auto-populate Knowledge Base
+                            </h4>
+                            <p className="text-sm text-gray-600 mb-3">
+                              Enter a website URL to automatically extract content and populate your knowledge base.
+                            </p>
+
+                            {/* Credits Display */}
+                            <div className="text-sm mb-3">
+                              <span className="font-medium">
+                                📊 Credits:{' '}
+                                {credits !== null ? (
+                                  <span className={credits < 50 ? 'text-red-600' : credits < 200 ? 'text-yellow-600' : 'text-green-600'}>
+                                    {credits.toLocaleString()} remaining
+                                    {planCredits && planCredits > 0 ? ` / ${planCredits.toLocaleString()}` : ''}
+                                  </span>
+                                ) : (
+                                  'Loading...'
+                                )}
+                              </span>
+                            </div>
+
+                            {/* Crawl Type Selector */}
+                            <div className="space-y-2 mb-3">
+                              <Label htmlFor="crawl-type" className="text-sm font-medium">
+                                Crawl Type
+                              </Label>
+                              <select
+                                id="crawl-type"
+                                value={crawlType}
+                                onChange={(e) => setCrawlType(e.target.value)}
+                                className="w-full px-3 py-2 border rounded-md bg-white"
+                              >
+                                <option value="scrape">Quick Scrape (Homepage only) - 1 credit</option>
+                                <option value="crawl-2">Crawl up to 2 pages - up to 2 credits</option>
+                                <option value="crawl-3">Crawl up to 3 pages - up to 3 credits</option>
+                                <option value="crawl-4">Crawl up to 4 pages - up to 4 credits</option>
+                                <option value="crawl-5">Crawl up to 5 pages - up to 5 credits</option>
+                              </select>
+                            </div>
+
+                            {/* Website URL Input */}
+                            <div className="space-y-2">
+                              <Label htmlFor="website-url-fc" className="text-sm font-medium">
+                                Website URL
+                              </Label>
+                              <div className="flex gap-2">
+                                <Input
+                                  id="website-url-fc"
+                                  type="text"
+                                  placeholder="https://example.com"
+                                  value={websiteUrl}
+                                  onChange={(e) => setWebsiteUrl(e.target.value)}
+                                  className="flex-1"
+                                />
+                                <Button
+                                  onClick={() => {/* TODO: Add crawl handler */}}
+                                  disabled={isCrawling || !websiteUrl.trim()}
+                                  className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white"
+                                >
+                                  {isCrawling ? (
+                                    <><span className="animate-spin">⏳</span> Crawling...</>
+                                  ) : (
+                                    <><Fire weight="fill" size={16} className="mr-1" /> Crawl</>
+                                  )}
+                                </Button>
+                              </div>
+                            </div>
+
+                            {/* Crawl Status */}
+                            {crawlStatus && (
+                              <Alert className={`mt-3 ${crawlStatus.includes('✅') ? 'bg-green-50 border-green-200' : crawlStatus.includes('❌') ? 'bg-red-50 border-red-200' : 'bg-yellow-50 border-yellow-200'}`}>
+                                <AlertDescription>{crawlStatus}</AlertDescription>
+                              </Alert>
+                            )}
+                          </Card>
+                        )}
+
+                        {/* Edit Knowledge Base Button */}
+                        <Button
+                          onClick={() => setShowKnowledgeEditor(!showKnowledgeEditor)}
+                          variant="outline"
+                          className="w-full"
+                        >
+                          ✏️ {showKnowledgeEditor ? 'Hide' : 'Edit'} Knowledge Base
+                        </Button>
+
+                        {/* Knowledge Base Editor */}
+                        {showKnowledgeEditor && (
+                          <div className="space-y-2">
+                            <p className="text-sm text-gray-600">
+                              <em>The knowledge base starts with Beti's personality. Website content will be added below.</em>
+                            </p>
+                            <Textarea
+                              value={knowledgeBase}
+                              onChange={(e) => setKnowledgeBase(e.target.value)}
+                              className="min-h-[300px] font-mono text-sm"
+                              maxLength={40000}
+                            />
+                            <div className={`text-sm text-right ${knowledgeBase.length > 38000 ? 'text-red-600 font-bold' : knowledgeBase.length > 35000 ? 'text-orange-600' : 'text-gray-500'}`}>
+                              {knowledgeBase.length.toLocaleString()} / 40,000 characters
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Voice Configuration */}
                       <div className="space-y-4">
                         <h3 className="text-lg font-semibold">Voice Configuration</h3>
 
@@ -558,25 +681,6 @@ export function VoiceBotSideCard() {
                             <option value="auto">Auto-detect</option>
                           </select>
                         </div>
-
-                        <div className="space-y-2">
-                          <Label>Knowledge Base Editor</Label>
-                          <Button
-                            variant="outline"
-                            onClick={() => setShowKnowledgeEditor(!showKnowledgeEditor)}
-                            className="w-full"
-                          >
-                            {showKnowledgeEditor ? 'Hide' : 'Edit'} Knowledge Base
-                          </Button>
-                        </div>
-
-                        {showKnowledgeEditor && (
-                          <Textarea
-                            value={knowledgeBase}
-                            onChange={(e) => setKnowledgeBase(e.target.value)}
-                            className="min-h-[300px] font-mono text-sm"
-                          />
-                        )}
                       </div>
                     </div>
                   </motion.div>
