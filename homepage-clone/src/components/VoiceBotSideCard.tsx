@@ -15,6 +15,61 @@ import {
 } from '@phosphor-icons/react'
 import { motion, AnimatePresence } from 'framer-motion'
 
+const MAX_INSTRUCTIONS_LENGTH = 40000
+
+const truncateKnowledgeBaseContent = (knowledgeBase: string) => {
+  if (knowledgeBase.length <= MAX_INSTRUCTIONS_LENGTH) {
+    return { content: knowledgeBase, wasTruncated: false }
+  }
+
+  const marker = '<!-- WEBSITE_CONTENT_MARKER -->'
+  const parts = knowledgeBase.split(marker)
+  let processedKnowledgeBase = knowledgeBase
+  let wasTruncated = false
+
+  if (parts.length > 1) {
+    const baseKnowledge = parts[0] + marker
+    const websiteContent = parts[1]
+    const remainingSpace = MAX_INSTRUCTIONS_LENGTH - baseKnowledge.length - 300
+
+    if (remainingSpace > 500) {
+      // We have space for at least some website content
+      const truncatedContent = websiteContent.substring(0, Math.max(0, remainingSpace))
+      const lastPageMarker = truncatedContent.lastIndexOf('--- PAGE')
+
+      if (lastPageMarker > 0) {
+        // Truncate at page boundary to keep complete pages
+        const cleanTruncatedContent = truncatedContent.substring(0, lastPageMarker)
+        processedKnowledgeBase = baseKnowledge + cleanTruncatedContent +
+          '\n\n[NOTE: Additional website content was truncated due to size limits. The information above represents partial crawled data from the first pages. For complete information, please refer customers to the website or contact details provided above.]'
+        wasTruncated = true
+        console.warn(`⚠️ Knowledge base truncated from ${knowledgeBase.length} to ${processedKnowledgeBase.length} characters (kept ${lastPageMarker} chars of website content)`)
+      } else {
+        // No page markers, just truncate cleanly at word boundary
+        const lastSpace = truncatedContent.lastIndexOf(' ')
+        const cleanContent = lastSpace > 0 ? truncatedContent.substring(0, lastSpace) : truncatedContent
+        processedKnowledgeBase = baseKnowledge + cleanContent +
+          '\n\n[NOTE: Website content was truncated due to size limits. The information above represents partial crawled data. For complete information, please refer customers to the website or contact details provided above.]'
+        wasTruncated = true
+        console.warn(`⚠️ Knowledge base truncated from ${knowledgeBase.length} to ${processedKnowledgeBase.length} characters (kept ${cleanContent.length} chars of website content)`)
+      }
+    } else {
+      // Not enough space for website content, but this should rarely happen
+      processedKnowledgeBase = baseKnowledge +
+        '\n\n[NOTE: Website content was omitted due to size limits. Base knowledge only contains less than 500 characters of space. Consider reducing base instructions.]'
+      wasTruncated = true
+      console.warn(`⚠️ Knowledge base has only ${remainingSpace} chars remaining. Website content omitted.`)
+    }
+  } else {
+    processedKnowledgeBase = knowledgeBase.substring(0, MAX_INSTRUCTIONS_LENGTH) +
+      '\n\n[NOTE: Content was truncated due to size limits.]'
+    wasTruncated = true
+    console.warn(`⚠️ Knowledge base truncated from ${knowledgeBase.length} to ${processedKnowledgeBase.length} characters`)
+  }
+
+  return { content: processedKnowledgeBase, wasTruncated }
+}
+
 interface Message {
   role: 'user' | 'beti'
   content: string
@@ -98,6 +153,182 @@ export function VoiceBotSideCard() {
       setCredits(null)
       setPlanCredits(null)
     }
+  }
+
+  const handleCrawl = async () => {
+    if (!websiteUrl.trim()) {
+      alert('Please enter a website URL')
+      return
+    }
+
+    setIsCrawling(true)
+    setCrawlStatus('Starting crawl...')
+
+    try {
+      // Parse crawl type and page limit
+      let type = 'scrape'
+      let maxPages = 1
+
+      if (crawlType === 'scrape') {
+        type = 'scrape'
+        maxPages = 1
+      } else if (crawlType.startsWith('crawl-')) {
+        type = 'crawl'
+        maxPages = parseInt(crawlType.split('-')[1])
+      }
+
+      // Start the crawl/scrape
+      const response = await fetch('/api/firecrawl-scrape', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          url: websiteUrl,
+          type: type,
+          maxPages: maxPages
+        })
+      })
+
+      if (!response.ok) {
+        // Handle timeout errors specifically
+        if (response.status === 504) {
+          throw new Error('Request timeout. The server took too long to respond. Please try again or use a smaller page limit.')
+        }
+
+        // Try to parse error message from JSON
+        let errorMessage = `Request failed with status ${response.status}`
+        try {
+          const data = await response.json()
+          // Include all error details from server
+          if (data.error) {
+            errorMessage = data.error
+            if (data.message && data.message !== data.error) {
+              errorMessage += `: ${data.message}`
+            }
+            if (data.details) {
+              errorMessage += ` (Details: ${data.details})`
+            }
+            if (data.responseKeys) {
+              console.error('Server response keys:', data.responseKeys)
+            }
+          }
+        } catch (parseError) {
+          // Response is not JSON (likely HTML error page)
+          const text = await response.text()
+          console.error('Non-JSON error response:', text.substring(0, 200))
+          if (text.includes('FUNCTION_INVOCATION_TIMEOUT')) {
+            errorMessage = 'Function timeout. The crawl is taking too long. Try reducing the number of pages.'
+          }
+        }
+        throw new Error(errorMessage)
+      }
+
+      const data = await response.json()
+
+      // For scrape (single page), content is returned immediately
+      if (type === 'scrape' && data.content) {
+        processContent(data, type, maxPages)
+        return
+      }
+
+      // For crawl, we need to poll for completion
+      if (type === 'crawl' && data.jobId) {
+        setCrawlStatus(`⏳ Crawling ${maxPages} page(s)... This may take a minute.`)
+        await pollCrawlStatus(data.jobId, maxPages)
+      } else if (data.content) {
+        // Fallback if content was returned immediately
+        processContent(data, type, maxPages)
+      } else {
+        throw new Error('Unexpected response format from server')
+      }
+
+    } catch (error: any) {
+      setCrawlStatus('❌ Error: ' + error.message)
+      setIsCrawling(false)
+    }
+  }
+
+  const pollCrawlStatus = async (jobId: string, maxPages: number) => {
+    let attempts = 0
+    const maxAttempts = 60 // 5 minutes max
+
+    const checkStatus = async (): Promise<void> => {
+      attempts++
+
+      const statusResponse = await fetch('/api/firecrawl-scrape', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'crawl',
+          jobId: jobId,
+          url: websiteUrl // Include for validation
+        })
+      })
+
+      const statusData = await statusResponse.json()
+
+      if (statusData.status === 'completed' && statusData.content) {
+        // Crawl is complete
+        processContent(statusData, 'crawl', maxPages)
+        return
+      } else if (statusData.status === 'failed') {
+        throw new Error(statusData.error || 'Crawl job failed')
+      } else {
+        // Still in progress
+        const completed = statusData.completed || 0
+        const total = statusData.total || maxPages
+        setCrawlStatus(`⏳ Crawling... ${completed}/${total} pages processed. Please wait...`)
+
+        if (attempts >= maxAttempts) {
+          throw new Error('Crawl took too long (timeout after 5 minutes)')
+        }
+
+        // Wait 5 seconds and check again
+        await new Promise(resolve => setTimeout(resolve, 5000))
+        return checkStatus()
+      }
+    }
+
+    await checkStatus()
+  }
+
+  const processContent = (data: any, type: string, maxPages: number) => {
+    // Remove old website content if exists
+    let updatedKnowledge = knowledgeBase
+    const marker = '<!-- WEBSITE_CONTENT_MARKER -->'
+
+    if (updatedKnowledge.includes(marker)) {
+      updatedKnowledge = updatedKnowledge.split(marker)[0] + marker
+    }
+
+    // Add new content
+    const crawlTypeLabel = type === 'scrape' ? 'Quick Scrape (1 page)' : `Crawl (up to ${maxPages} pages)`
+    const newContent = `
+================================================================================
+WEBSITE CONTENT FROM: ${websiteUrl}
+Crawl Type: ${crawlTypeLabel}
+Pages Crawled: ${data.pageCount}
+Credits Used: ${data.creditsUsed}
+Crawled on: ${new Date().toLocaleString()}
+================================================================================
+
+${data.content}
+
+================================================================================
+END OF WEBSITE CONTENT`
+
+    updatedKnowledge = updatedKnowledge.replace(marker, marker + newContent)
+    const { content: limitedKnowledge, wasTruncated } = truncateKnowledgeBaseContent(updatedKnowledge)
+    setKnowledgeBase(limitedKnowledge)
+
+    let statusMessage = `✅ Success! ${data.pageCount} page(s) crawled (${data.creditsUsed} credits used).`
+    if (wasTruncated) {
+      statusMessage += ' ⚠️ Some website content was truncated to fit the 40,000 character limit.'
+    }
+    setCrawlStatus(statusMessage)
+    setIsCrawling(false)
+
+    // Refresh credits
+    fetchCredits()
   }
 
   const clearTranscript = () => {
@@ -584,7 +815,7 @@ export function VoiceBotSideCard() {
                                   className="flex-1"
                                 />
                                 <Button
-                                  onClick={() => {/* TODO: Add crawl handler */}}
+                                  onClick={handleCrawl}
                                   disabled={isCrawling || !websiteUrl.trim()}
                                   className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white"
                                 >
