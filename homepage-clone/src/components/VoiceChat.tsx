@@ -5,8 +5,9 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Microphone, Eye, EyeSlash, Fire, Sparkle, Trash, Gear, X } from '@phosphor-icons/react'
+import { Microphone, Eye, EyeSlash, Fire, Sparkle, Trash, Gear, X, Waveform } from '@phosphor-icons/react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { WaveformAnimation } from './WaveformAnimation'
 
 const MAX_INSTRUCTIONS_LENGTH = 40000
 
@@ -1191,6 +1192,26 @@ CONVERSATION STYLE:
             )}
           </div>
         </Card>
+
+        {/* Speaking Indicator */}
+        <AnimatePresence>
+          {isSpeaking && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="flex flex-col items-center justify-center gap-3 p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg border border-purple-200 mt-4"
+            >
+              <span className="text-sm font-medium text-purple-700">Beti is speaking</span>
+              <WaveformAnimation
+                isActive={isSpeaking}
+                color="#8b5cf6"
+                barCount={10}
+                height={60}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* End Session Button - Below transcript card */}
         <div className="mt-4">
