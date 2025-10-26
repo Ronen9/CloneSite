@@ -540,14 +540,20 @@ CONVERSATION STYLE:
       isOpeningGreeting.current = true
       console.log('🔒 Opening greeting protection enabled')
 
-      // Temporarily disable turn detection for the opening greeting
-      const disableTurnDetection = {
+      // Make turn detection very insensitive during opening greeting
+      // This prevents user interruption while keeping transcription working
+      const reduceVadSensitivity = {
         type: 'session.update',
         session: {
-          turn_detection: null
+          turn_detection: {
+            type: 'server_vad',
+            threshold: 0.95, // Very high threshold - almost impossible to trigger
+            prefix_padding_ms: 300,
+            silence_duration_ms: 2000 // Require 2 seconds of silence before turn
+          }
         }
       }
-      dataChannel.send(JSON.stringify(disableTurnDetection))
+      dataChannel.send(JSON.stringify(reduceVadSensitivity))
 
       // Send the opening greeting
       const greetingEvent = {
@@ -559,9 +565,9 @@ CONVERSATION STYLE:
       }
       dataChannel.send(JSON.stringify(greetingEvent))
 
-      // Re-enable turn detection after greeting is done (with delay to ensure greeting completes)
+      // Restore normal turn detection after greeting is done
       setTimeout(() => {
-        const enableTurnDetection = {
+        const restoreVadSensitivity = {
           type: 'session.update',
           session: {
             turn_detection: {
@@ -572,8 +578,8 @@ CONVERSATION STYLE:
             }
           }
         }
-        dataChannel.send(JSON.stringify(enableTurnDetection))
-        console.log('🔊 Turn detection re-enabled')
+        dataChannel.send(JSON.stringify(restoreVadSensitivity))
+        console.log('🔊 Turn detection restored to normal sensitivity')
       }, 5000) // 5 seconds should be enough for the greeting
     }, 1000)
   }
