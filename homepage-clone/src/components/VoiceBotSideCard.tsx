@@ -14,6 +14,7 @@ import {
   Waveform
 } from '@phosphor-icons/react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { WaveformAnimation } from './WaveformAnimation'
 
 const MAX_INSTRUCTIONS_LENGTH = 40000
 
@@ -371,8 +372,8 @@ END OF WEBSITE CONTENT`
         addToTranscript('beti', currentBetiResponse.current.trim())
         currentBetiResponse.current = ''
       }
-      console.log('🔇 Beti stopped speaking (transcript.done)')
-      setIsSpeaking(false)
+      // NOTE: Don't set isSpeaking(false) here - audio is still playing!
+      // The audio_buffer.stopped event will handle that
     }
 
     // Track when Beti starts speaking (audio buffer started)
@@ -844,24 +845,15 @@ CONVERSATION STYLE:
                       initial={{ opacity: 0, y: -10 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -10 }}
-                      className="flex items-center justify-center gap-1 p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg border border-purple-200"
+                      className="flex flex-col items-center justify-center gap-3 p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg border border-purple-200"
                     >
-                      <span className="text-sm font-medium text-purple-700 mr-3">Beti is speaking</span>
-                      {[...Array(5)].map((_, i) => (
-                        <motion.div
-                          key={i}
-                          className="w-1 bg-gradient-to-t from-purple-600 to-blue-600 rounded-full"
-                          animate={{
-                            height: ['12px', '24px', '12px'],
-                          }}
-                          transition={{
-                            duration: 0.6,
-                            repeat: Infinity,
-                            delay: i * 0.1,
-                            ease: 'easeInOut',
-                          }}
-                        />
-                      ))}
+                      <span className="text-sm font-medium text-purple-700">Beti is speaking</span>
+                      <WaveformAnimation
+                        isActive={isSpeaking}
+                        color="#8b5cf6"
+                        barCount={10}
+                        height={60}
+                      />
                     </motion.div>
                   )}
                 </AnimatePresence>
