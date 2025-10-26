@@ -537,9 +537,9 @@ CONVERSATION STYLE:
             },
         turn_detection: {
           type: 'server_vad',
-          threshold: 0.5,
+          threshold: 0.7, // Higher threshold = less sensitive to background noise
           prefix_padding_ms: 300,
-          silence_duration_ms: 500
+          silence_duration_ms: 800 // Longer silence required before detecting turn
         },
         modalities: ['text', 'audio']
       }
@@ -587,9 +587,9 @@ CONVERSATION STYLE:
           session: {
             turn_detection: {
               type: 'server_vad',
-              threshold: 0.5,
+              threshold: 0.7, // Higher threshold = less sensitive to background noise
               prefix_padding_ms: 300,
-              silence_duration_ms: 500
+              silence_duration_ms: 800 // Longer silence required before detecting turn
             }
           }
         }
