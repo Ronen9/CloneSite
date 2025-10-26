@@ -694,6 +694,9 @@ CONVERSATION STYLE:
       currentBetiResponse.current = ''
       setIsSessionActive(false)
       setIsSessionEnded(false)
+      // Reset opening greeting protection flags for new session
+      isOpeningGreeting.current = false
+      openingGreetingResponseId.current = null
 
       const response = await fetch('/api/voice-session', {
         method: 'POST',

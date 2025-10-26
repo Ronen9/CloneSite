@@ -707,6 +707,9 @@ CONVERSATION STYLE:
       currentBetiResponse.current = ''
       setIsSessionActive(false)
       setIsSessionEnded(false)
+      // Reset opening greeting protection flags for new session
+      isOpeningGreeting.current = false
+      openingGreetingResponseId.current = null
       
       console.log(`🚀 Starting session with voice: ${voice}, temperature: ${temperature}`)
       
