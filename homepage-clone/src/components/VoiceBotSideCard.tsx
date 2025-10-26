@@ -336,7 +336,16 @@ END OF WEBSITE CONTENT`
   }
 
   const clearTranscript = () => {
+    // Clear transcript
     setTranscript([])
+
+    // Reset all session-related values for fresh start
+    currentBetiResponse.current = ''
+    isOpeningGreeting.current = false
+    openingGreetingResponseId.current = null
+    setIsSpeaking(false)
+
+    console.log('🧹 Transcript cleared and session values reset')
   }
 
   const addToTranscript = (role: 'user' | 'beti', content: string) => {
