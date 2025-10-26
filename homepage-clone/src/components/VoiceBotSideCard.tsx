@@ -129,6 +129,7 @@ export function VoiceBotSideCard() {
   const sessionDataRef = useRef<any>(null)
   const isOpeningGreeting = useRef<boolean>(false)
   const openingGreetingResponseId = useRef<string | null>(null)
+  const vadRestoreTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // Fetch credits on mount if strict mode
   useEffect(() => {
@@ -575,20 +576,26 @@ CONVERSATION STYLE:
       dataChannel.send(JSON.stringify(greetingEvent))
 
       // Restore normal turn detection after greeting is done
-      setTimeout(() => {
-        const restoreVadSensitivity = {
-          type: 'session.update',
-          session: {
-            turn_detection: {
-              type: 'server_vad',
-              threshold: 0.6, // Balanced: not too sensitive, but still captures speech
-              prefix_padding_ms: 300,
-              silence_duration_ms: 700 // Balanced silence duration
+      vadRestoreTimeoutRef.current = setTimeout(() => {
+        // Check if data channel is still open before sending
+        if (dataChannel.readyState === 'open') {
+          const restoreVadSensitivity = {
+            type: 'session.update',
+            session: {
+              turn_detection: {
+                type: 'server_vad',
+                threshold: 0.6, // Balanced: not too sensitive, but still captures speech
+                prefix_padding_ms: 300,
+                silence_duration_ms: 700 // Balanced silence duration
+              }
             }
           }
+          dataChannel.send(JSON.stringify(restoreVadSensitivity))
+          console.log('🔊 Turn detection restored to normal sensitivity')
+        } else {
+          console.log('⚠️ Data channel closed, skipping VAD restore')
         }
-        dataChannel.send(JSON.stringify(restoreVadSensitivity))
-        console.log('🔊 Turn detection restored to normal sensitivity')
+        vadRestoreTimeoutRef.current = null
       }, 5000) // 5 seconds should be enough for the greeting
     }, 1000)
   }
@@ -743,6 +750,13 @@ CONVERSATION STYLE:
   }
 
   const endVoiceSession = () => {
+    // Clear any pending timeouts
+    if (vadRestoreTimeoutRef.current) {
+      clearTimeout(vadRestoreTimeoutRef.current)
+      vadRestoreTimeoutRef.current = null
+      console.log('⏹️ Cleared pending VAD restore timeout')
+    }
+
     // Close data channel first
     if (dataChannelRef.current) {
       try {
