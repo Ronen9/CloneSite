@@ -11,7 +11,9 @@ import {
   Gear,
   Fire,
   Trash,
-  Waveform
+  Waveform,
+  CaretUp,
+  CaretDown
 } from '@phosphor-icons/react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { WaveformAnimation } from './WaveformAnimation'
@@ -119,6 +121,7 @@ export function VoiceBotSideCard() {
   const [isSessionEnded, setIsSessionEnded] = useState(false)
   const [transcript, setTranscript] = useState<Message[]>([])
   const [isSpeaking, setIsSpeaking] = useState(false)
+  const [isTranscriptExpanded, setIsTranscriptExpanded] = useState(false)
 
   // WebRTC refs
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null)
@@ -867,42 +870,64 @@ CONVERSATION STYLE:
                 </div>
 
                 {/* Transcript */}
-                <Card className="p-4 min-h-[300px] max-h-[380px] overflow-y-auto bg-gray-50" ref={transcriptContainerRef}>
+                <Card className="p-4 bg-gray-50">
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="font-semibold text-sm">Conversation</h3>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={clearTranscript}
-                      className="text-gray-500 hover:text-gray-700"
-                    >
-                      <Trash size={16} />
-                    </Button>
-                  </div>
-                  {transcript.length === 0 ? (
-                    <p className="text-gray-400 text-sm italic text-center py-8">
-                      Start a session to begin conversation...
-                    </p>
-                  ) : (
-                    <div className="space-y-3">
-                      {transcript.map((msg, idx) => (
-                        <div
-                          key={idx}
-                          className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                        >
-                          <div
-                            className={`max-w-[80%] rounded-lg p-3 ${
-                              msg.role === 'user'
-                                ? 'bg-blue-600 text-white'
-                                : 'bg-white border border-gray-200'
-                            }`}
-                          >
-                            <p className="text-sm">{msg.content}</p>
-                          </div>
-                        </div>
-                      ))}
+                    <div className="flex gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setIsTranscriptExpanded(!isTranscriptExpanded)}
+                        className="text-gray-500 hover:text-gray-700"
+                        title={isTranscriptExpanded ? "Collapse transcript" : "Expand transcript"}
+                      >
+                        {isTranscriptExpanded ? <CaretUp size={16} /> : <CaretDown size={16} />}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={clearTranscript}
+                        className="text-gray-500 hover:text-gray-700"
+                        title="Clear transcript"
+                      >
+                        <Trash size={16} />
+                      </Button>
                     </div>
-                  )}
+                  </div>
+
+                  <div
+                    className={`overflow-y-auto transition-all duration-300 ${
+                      isTranscriptExpanded
+                        ? 'min-h-[450px] max-h-[600px]'
+                        : 'min-h-[80px] max-h-[80px]'
+                    }`}
+                    ref={transcriptContainerRef}
+                  >
+                    {transcript.length === 0 ? (
+                      <p className="text-gray-400 text-sm italic text-center py-8">
+                        Start a session to begin conversation...
+                      </p>
+                    ) : (
+                      <div className="space-y-3">
+                        {transcript.map((msg, idx) => (
+                          <div
+                            key={idx}
+                            className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                          >
+                            <div
+                              className={`max-w-[80%] rounded-lg p-3 ${
+                                msg.role === 'user'
+                                  ? 'bg-blue-600 text-white'
+                                  : 'bg-white border border-gray-200'
+                              }`}
+                            >
+                              <p className="text-sm">{msg.content}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </Card>
 
                 {/* Speaking Indicator - Debug: always show state */}
