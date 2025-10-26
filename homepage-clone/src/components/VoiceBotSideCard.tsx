@@ -885,8 +885,9 @@ CONVERSATION STYLE:
                 </div>
 
                 {/* Transcript */}
-                <Card className="p-4 min-h-[400px] max-h-[500px] overflow-y-auto bg-gray-50" ref={transcriptContainerRef}>
-                  <div className="flex items-center justify-between mb-3">
+                <Card className="bg-gray-50">
+                  {/* Sticky Header */}
+                  <div className="sticky top-0 bg-gray-50 z-10 flex items-center justify-between p-4 border-b border-gray-200">
                     <h3 className="font-semibold text-sm">Conversation</h3>
                     <Button
                       variant="ghost"
@@ -897,30 +898,34 @@ CONVERSATION STYLE:
                       <Trash size={16} />
                     </Button>
                   </div>
-                  {transcript.length === 0 ? (
-                    <p className="text-gray-400 text-sm italic text-center py-8">
-                      Start a session to begin conversation...
-                    </p>
-                  ) : (
-                    <div className="space-y-3">
-                      {transcript.map((msg, idx) => (
-                        <div
-                          key={idx}
-                          className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                        >
+
+                  {/* Scrollable Content */}
+                  <div className="p-4 min-h-[400px] max-h-[500px] overflow-y-auto" ref={transcriptContainerRef}>
+                    {transcript.length === 0 ? (
+                      <p className="text-gray-400 text-sm italic text-center py-8">
+                        Start a session to begin conversation...
+                      </p>
+                    ) : (
+                      <div className="space-y-3">
+                        {transcript.map((msg, idx) => (
                           <div
-                            className={`max-w-[80%] rounded-lg p-3 ${
-                              msg.role === 'user'
-                                ? 'bg-blue-600 text-white'
-                                : 'bg-white border border-gray-200'
-                            }`}
+                            key={idx}
+                            className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                           >
-                            <p className="text-sm">{msg.content}</p>
+                            <div
+                              className={`max-w-[80%] rounded-lg p-3 ${
+                                msg.role === 'user'
+                                  ? 'bg-blue-600 text-white'
+                                  : 'bg-white border border-gray-200'
+                              }`}
+                            >
+                              <p className="text-sm">{msg.content}</p>
+                            </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </Card>
 
                 {/* Speaking Indicator - Debug: always show state */}

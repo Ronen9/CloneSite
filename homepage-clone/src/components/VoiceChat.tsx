@@ -1155,8 +1155,9 @@ CONVERSATION STYLE:
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4, type: 'spring', stiffness: 100 }}
       >
-        <Card className="backdrop-blur-xl bg-gradient-to-br from-slate-50/60 via-gray-50/60 to-zinc-50/60 border-white/40 shadow-lg hover:shadow-xl transition-shadow duration-300 p-4 md:p-6">
-          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
+        <Card className="backdrop-blur-xl bg-gradient-to-br from-slate-50/60 via-gray-50/60 to-zinc-50/60 border-white/40 shadow-lg hover:shadow-xl transition-shadow duration-300">
+          {/* Sticky Header */}
+          <div className="sticky top-0 bg-gradient-to-br from-slate-50/95 via-gray-50/95 to-zinc-50/95 backdrop-blur-xl z-10 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 p-4 md:p-6 border-b border-gray-200">
             <h3 className="text-base md:text-lg font-semibold bg-gradient-to-r from-slate-700 to-gray-700 bg-clip-text text-transparent">💬 Conversation Transcript</h3>
             <Button
               onClick={clearTranscript}
@@ -1169,7 +1170,8 @@ CONVERSATION STYLE:
             </Button>
           </div>
 
-          <div 
+          {/* Scrollable Content */}
+          <div
             ref={transcriptContainerRef}
             className="bg-gray-50 rounded-lg p-3 md:p-4 max-h-[400px] md:max-h-[500px] overflow-y-auto min-h-[200px]"
           >
