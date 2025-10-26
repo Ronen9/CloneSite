@@ -127,6 +127,8 @@ export function VoiceBotSideCard() {
   const currentBetiResponse = useRef<string>('')
   const transcriptContainerRef = useRef<HTMLDivElement>(null)
   const sessionDataRef = useRef<any>(null)
+  const isOpeningGreeting = useRef<boolean>(false)
+  const openingGreetingResponseId = useRef<string | null>(null)
 
   // Fetch credits on mount if strict mode
   useEffect(() => {
@@ -388,6 +390,47 @@ END OF WEBSITE CONTENT`
       setIsSpeaking(false)
     }
 
+    // Track when user starts speaking (to stop waveform during interruption)
+    else if (message.type === 'input_audio_buffer.speech_started') {
+      console.log('👤 User started speaking - stopping waveform')
+      // Only allow interruption if NOT during opening greeting
+      if (!isOpeningGreeting.current) {
+        setIsSpeaking(false)
+      } else {
+        console.log('🚫 Opening greeting in progress - interruption blocked')
+      }
+    }
+
+    // Track response creation (to identify opening greeting)
+    else if (message.type === 'response.created') {
+      console.log('📝 Response created:', message.response?.id)
+      // Check if this is the opening greeting response
+      if (openingGreetingResponseId.current === null && isOpeningGreeting.current) {
+        openingGreetingResponseId.current = message.response?.id || null
+        console.log('🎯 Opening greeting response ID:', openingGreetingResponseId.current)
+      }
+    }
+
+    // Track when response is done (to release opening greeting protection)
+    else if (message.type === 'response.done') {
+      console.log('✅ Response done:', message.response?.id)
+      // If this was the opening greeting, release the protection
+      if (message.response?.id === openingGreetingResponseId.current) {
+        console.log('🔓 Opening greeting completed - interruption now allowed')
+        isOpeningGreeting.current = false
+        openingGreetingResponseId.current = null
+      }
+    }
+
+    // Track response cancellation due to interruption
+    else if (message.type === 'response.cancelled') {
+      console.log('⚠️ Response cancelled (user interrupted)')
+      // Only stop speaking if NOT during opening greeting
+      if (!isOpeningGreeting.current) {
+        setIsSpeaking(false)
+      }
+    }
+
     // Log session events
     else if (message.type === 'session.created') {
       console.log('✅ Session created successfully')
@@ -493,6 +536,20 @@ CONVERSATION STYLE:
     dataChannel.send(JSON.stringify(event))
 
     setTimeout(() => {
+      // Set flag to protect opening greeting from interruption
+      isOpeningGreeting.current = true
+      console.log('🔒 Opening greeting protection enabled')
+
+      // Temporarily disable turn detection for the opening greeting
+      const disableTurnDetection = {
+        type: 'session.update',
+        session: {
+          turn_detection: null
+        }
+      }
+      dataChannel.send(JSON.stringify(disableTurnDetection))
+
+      // Send the opening greeting
       const greetingEvent = {
         type: 'response.create',
         response: {
@@ -501,6 +558,23 @@ CONVERSATION STYLE:
         }
       }
       dataChannel.send(JSON.stringify(greetingEvent))
+
+      // Re-enable turn detection after greeting is done (with delay to ensure greeting completes)
+      setTimeout(() => {
+        const enableTurnDetection = {
+          type: 'session.update',
+          session: {
+            turn_detection: {
+              type: 'server_vad',
+              threshold: 0.5,
+              prefix_padding_ms: 300,
+              silence_duration_ms: 500
+            }
+          }
+        }
+        dataChannel.send(JSON.stringify(enableTurnDetection))
+        console.log('🔊 Turn detection re-enabled')
+      }, 5000) // 5 seconds should be enough for the greeting
     }, 1000)
   }
 
