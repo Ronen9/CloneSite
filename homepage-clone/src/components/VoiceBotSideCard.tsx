@@ -775,6 +775,10 @@ CONVERSATION STYLE:
     // Reset response accumulator
     currentBetiResponse.current = ''
 
+    // Reset opening greeting protection flags
+    isOpeningGreeting.current = false
+    openingGreetingResponseId.current = null
+
     setIsSessionEnded(true)
     setIsSessionActive(false)
     setIsSpeaking(false)
