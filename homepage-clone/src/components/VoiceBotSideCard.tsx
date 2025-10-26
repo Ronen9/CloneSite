@@ -371,12 +371,20 @@ END OF WEBSITE CONTENT`
         addToTranscript('beti', currentBetiResponse.current.trim())
         currentBetiResponse.current = ''
       }
+      console.log('🔇 Beti stopped speaking (transcript.done)')
       setIsSpeaking(false)
     }
 
-    // Track when Beti is speaking (audio being generated)
-    else if (message.type === 'response.audio.delta') {
+    // Track when Beti starts speaking (audio buffer started)
+    else if (message.type === 'output_audio_buffer.started') {
+      console.log('🔊 Beti started speaking (audio buffer started)')
       setIsSpeaking(true)
+    }
+
+    // Track when Beti stops speaking (audio buffer stopped)
+    else if (message.type === 'output_audio_buffer.stopped') {
+      console.log('🔇 Beti stopped speaking (audio buffer stopped)')
+      setIsSpeaking(false)
     }
 
     // Log session events
@@ -821,6 +829,13 @@ CONVERSATION STYLE:
                     </div>
                   )}
                 </Card>
+
+                {/* Speaking Indicator - Debug: always show state */}
+                {isSessionActive && (
+                  <div className="text-xs text-gray-500 text-center">
+                    Speaking state: {isSpeaking ? '🔊 TRUE' : '🔇 FALSE'}
+                  </div>
+                )}
 
                 {/* Speaking Indicator */}
                 <AnimatePresence>
