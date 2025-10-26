@@ -142,7 +142,7 @@ function App() {
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1 }}
-                className="flex gap-2 mb-4 p-1 bg-white/30 backdrop-blur-md rounded-lg shadow-lg"
+                className="hidden flex gap-2 mb-4 p-1 bg-white/30 backdrop-blur-md rounded-lg shadow-lg"
               >
                 <button
                   onClick={() => setActiveTab('clone')}
