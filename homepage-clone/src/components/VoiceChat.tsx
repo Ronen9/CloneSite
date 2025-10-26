@@ -5,8 +5,9 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Microphone, Eye, EyeSlash, Fire, Sparkle, Trash, Gear, X } from '@phosphor-icons/react'
+import { Microphone, Eye, EyeSlash, Fire, Sparkle, Trash, Gear, X, Waveform } from '@phosphor-icons/react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { WaveformAnimation } from './WaveformAnimation'
 
 const MAX_INSTRUCTIONS_LENGTH = 40000
 
@@ -110,7 +111,8 @@ export function VoiceChat() {
   const [isSessionActive, setIsSessionActive] = useState(false)
   const [isSessionEnded, setIsSessionEnded] = useState(false)
   const [transcript, setTranscript] = useState<Message[]>([])
-  
+  const [isSpeaking, setIsSpeaking] = useState(false)
+
   // WebRTC refs
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null)
   const dataChannelRef = useRef<RTCDataChannel | null>(null)
@@ -118,6 +120,8 @@ export function VoiceChat() {
   const currentBetiResponse = useRef<string>('')
   const transcriptContainerRef = useRef<HTMLDivElement | null>(null)
   const sessionDataRef = useRef<any>(null)
+  const isOpeningGreeting = useRef<boolean>(false)
+  const openingGreetingResponseId = useRef<string | null>(null)
 
   const knowledgeBaseCharsRemaining = MAX_INSTRUCTIONS_LENGTH - knowledgeBase.length
   const knowledgeBaseCounterClass = knowledgeBaseCharsRemaining < 0
@@ -430,8 +434,63 @@ CONVERSATION STYLE:
         addToTranscript('beti', currentBetiResponse.current.trim())
         currentBetiResponse.current = ''
       }
+      // NOTE: Don't set isSpeaking(false) here - audio is still playing!
+      // The audio_buffer.stopped event will handle that
     }
-    
+
+    // Track when Beti starts speaking (audio buffer started)
+    else if (message.type === 'output_audio_buffer.started') {
+      console.log('🔊 Beti started speaking (audio buffer started)')
+      setIsSpeaking(true)
+    }
+
+    // Track when Beti stops speaking (audio buffer stopped)
+    else if (message.type === 'output_audio_buffer.stopped') {
+      console.log('🔇 Beti stopped speaking (audio buffer stopped)')
+      setIsSpeaking(false)
+    }
+
+    // Track when user starts speaking (to stop waveform during interruption)
+    else if (message.type === 'input_audio_buffer.speech_started') {
+      console.log('👤 User started speaking - stopping waveform')
+      // Only allow interruption if NOT during opening greeting
+      if (!isOpeningGreeting.current) {
+        setIsSpeaking(false)
+      } else {
+        console.log('🚫 Opening greeting in progress - interruption blocked')
+      }
+    }
+
+    // Track response creation (to identify opening greeting)
+    else if (message.type === 'response.created') {
+      console.log('📝 Response created:', message.response?.id)
+      // Check if this is the opening greeting response
+      if (openingGreetingResponseId.current === null && isOpeningGreeting.current) {
+        openingGreetingResponseId.current = message.response?.id || null
+        console.log('🎯 Opening greeting response ID:', openingGreetingResponseId.current)
+      }
+    }
+
+    // Track when response is done (to release opening greeting protection)
+    else if (message.type === 'response.done') {
+      console.log('✅ Response done:', message.response?.id)
+      // If this was the opening greeting, release the protection
+      if (message.response?.id === openingGreetingResponseId.current) {
+        console.log('🔓 Opening greeting completed - interruption now allowed')
+        isOpeningGreeting.current = false
+        openingGreetingResponseId.current = null
+      }
+    }
+
+    // Track response cancellation due to interruption
+    else if (message.type === 'response.cancelled') {
+      console.log('⚠️ Response cancelled (user interrupted)')
+      // Only stop speaking if NOT during opening greeting
+      if (!isOpeningGreeting.current) {
+        setIsSpeaking(false)
+      }
+    }
+
     // Log session events
     else if (message.type === 'session.created') {
       console.log('✅ Session created successfully')
@@ -440,7 +499,7 @@ CONVERSATION STYLE:
     } else if (message.type === 'error') {
       const errorMessage = message.error?.message || 'Unknown error'
       console.error('❌ Session error:', message.error)
-      
+
       // Don't alert for transcription-related errors, just log them
       if (errorMessage.includes('truncated') || errorMessage.includes('audio messages')) {
         console.warn('⚠️ Transcription error (non-critical):', errorMessage)
@@ -488,9 +547,29 @@ CONVERSATION STYLE:
     
     dataChannel.send(JSON.stringify(event))
     console.log('📤 Configuration sent to AI with transcription enabled (language: ' + (transcriptionLanguage || 'auto') + ')')
-    
+
     // Send Beti's opening greeting after 1 second
     setTimeout(() => {
+      // Set flag to protect opening greeting from interruption
+      isOpeningGreeting.current = true
+      console.log('🔒 Opening greeting protection enabled')
+
+      // Make turn detection very insensitive during opening greeting
+      // This prevents user interruption while keeping transcription working
+      const reduceVadSensitivity = {
+        type: 'session.update',
+        session: {
+          turn_detection: {
+            type: 'server_vad',
+            threshold: 0.95, // Very high threshold - almost impossible to trigger
+            prefix_padding_ms: 300,
+            silence_duration_ms: 2000 // Require 2 seconds of silence before turn
+          }
+        }
+      }
+      dataChannel.send(JSON.stringify(reduceVadSensitivity))
+
+      // Send the opening greeting
       const greetingEvent = {
         type: 'response.create',
         response: {
@@ -500,6 +579,23 @@ CONVERSATION STYLE:
       }
       dataChannel.send(JSON.stringify(greetingEvent))
       console.log('👋 Sent Beti\'s opening greeting')
+
+      // Restore normal turn detection after greeting is done
+      setTimeout(() => {
+        const restoreVadSensitivity = {
+          type: 'session.update',
+          session: {
+            turn_detection: {
+              type: 'server_vad',
+              threshold: 0.5,
+              prefix_padding_ms: 300,
+              silence_duration_ms: 500
+            }
+          }
+        }
+        dataChannel.send(JSON.stringify(restoreVadSensitivity))
+        console.log('🔊 Turn detection restored to normal sensitivity')
+      }, 5000) // 5 seconds should be enough for the greeting
     }, 1000)
   }
 
@@ -1097,14 +1193,34 @@ CONVERSATION STYLE:
           </div>
         </Card>
 
+        {/* Speaking Indicator */}
+        <AnimatePresence>
+          {isSpeaking && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="flex flex-col items-center justify-center gap-3 p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg border border-purple-200 mt-4"
+            >
+              <span className="text-sm font-medium text-purple-700">Beti is speaking</span>
+              <WaveformAnimation
+                isActive={isSpeaking}
+                color="#8b5cf6"
+                barCount={10}
+                height={60}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* End Session Button - Below transcript card */}
         <div className="mt-4">
           <Button
             onClick={endVoiceSession}
             disabled={!isSessionActive || isSessionEnded}
             className={`w-full h-12 ${
-              isSessionEnded 
-                ? 'bg-gradient-to-r from-green-500 to-emerald-500 cursor-not-allowed opacity-80' 
+              isSessionEnded
+                ? 'bg-gradient-to-r from-green-500 to-emerald-500 cursor-not-allowed opacity-80'
                 : 'bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700'
             } text-white shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100`}
           >
