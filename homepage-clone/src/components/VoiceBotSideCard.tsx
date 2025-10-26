@@ -525,9 +525,9 @@ CONVERSATION STYLE:
           : { model: 'whisper-1' },
         turn_detection: {
           type: 'server_vad',
-          threshold: 0.7, // Higher threshold = less sensitive to background noise
+          threshold: 0.6, // Balanced: not too sensitive, but still captures speech
           prefix_padding_ms: 300,
-          silence_duration_ms: 800 // Longer silence required before detecting turn
+          silence_duration_ms: 700 // Balanced silence duration
         },
         modalities: ['text', 'audio']
       }
@@ -572,9 +572,9 @@ CONVERSATION STYLE:
           session: {
             turn_detection: {
               type: 'server_vad',
-              threshold: 0.7, // Higher threshold = less sensitive to background noise
+              threshold: 0.6, // Balanced: not too sensitive, but still captures speech
               prefix_padding_ms: 300,
-              silence_duration_ms: 800 // Longer silence required before detecting turn
+              silence_duration_ms: 700 // Balanced silence duration
             }
           }
         }
