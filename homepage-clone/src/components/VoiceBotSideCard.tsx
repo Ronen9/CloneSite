@@ -651,16 +651,21 @@ CONVERSATION STYLE:
       transcriptionLanguage = 'en'
     }
 
-    // Get tools from session data (includes transfer_to_chat function)
+    // Get tools and escalation instructions from session data
     const sessionData = sessionDataRef.current
     const tools = sessionData?.tools || []
-    // IMPORTANT: Use the user's custom instructions (includes scraped website content),
-    // NOT the backend's generic instructions!
+    const backendInstructions = sessionData?.instructions || ''
+
+    // IMPORTANT: Merge user's custom instructions (with website content)
+    // WITH backend's escalation instructions (for goodbye message and transfer handling)
+    const finalInstructions = backendInstructions
+      ? `${instructions}\n\n${backendInstructions}`
+      : instructions
 
     const event = {
       type: 'session.update',
       session: {
-        instructions,
+        instructions: finalInstructions,
         voice,
         temperature,
         input_audio_transcription: transcriptionLanguage
