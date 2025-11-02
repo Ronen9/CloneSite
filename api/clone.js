@@ -127,13 +127,18 @@ module.exports = async function handler(req, res) {
           includeHtml: true,
           includeRawHtml: true,
           includeTags: ["a", "img", "h1", "h2", "h3", "h4", "h5", "h6", "p", "div", "span", "nav", "header", "footer", "section", "article", "body", "main"],
-          excludeTags: ["script", "noscript", "style"]
+          excludeTags: ["script", "noscript", "style"],
+          // Add mobile headers to bypass some anti-bot protections
+          headers: {
+            "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1"
+          }
         },
         {
           headers: {
             Authorization: `Bearer ${firecrawlApiKey}`,
             "Content-Type": "application/json"
-          }
+          },
+          timeout: 60000 // Increase timeout to 60 seconds
         }
       );
       console.log('Firecrawl response:', response.status, response.data);
@@ -200,11 +205,14 @@ module.exports = async function handler(req, res) {
 
     } catch (error) {
       console.error("❌ Firecrawl failed, trying direct fetch:", error.message);
+      console.error("Full Firecrawl error:", error);
+
       // Fallback to direct HTML fetch
       try {
         console.log('🔄 Attempting directHtmlFetch fallback for:', url);
         const fallbackResult = await directHtmlFetch(url, chatScript);
-        console.log('📋 Fallback result success:', fallbackResult.success);
+        console.log('📋 Fallback result:', { success: fallbackResult.success, error: fallbackResult.error });
+
         if (fallbackResult.success) {
           res.json({
             success: true,
@@ -221,11 +229,18 @@ module.exports = async function handler(req, res) {
         }
       } catch (fallbackError) {
         console.error("❌ Direct fetch exception:", fallbackError.message);
+        console.error("Full fallback error:", fallbackError);
       }
-      // If all methods fail
-      res.status(500).json({ 
-        error: `Failed to clone website. Firecrawl: ${error.message}. Direct fetch fallback also failed.`,
-        url: url
+
+      // If all methods fail, provide detailed error
+      const firecrawlError = error.response?.data?.error || error.message;
+      res.status(500).json({
+        error: `Failed to clone website. Firecrawl: ${firecrawlError}. Direct fetch fallback also failed.`,
+        url: url,
+        details: {
+          firecrawl: error.message,
+          directFetch: 'Also failed - check server logs'
+        }
       });
     }
   } catch (err) {
