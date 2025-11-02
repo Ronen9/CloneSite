@@ -15,6 +15,8 @@ import {
 } from '@phosphor-icons/react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { WaveformAnimation } from './WaveformAnimation'
+import { useOmnichannelWidget } from '@/hooks/useOmnichannelWidget'
+import { generateChatTransferSummary, ConversationMessage } from '@/utils/conversationSummary'
 
 const MAX_INSTRUCTIONS_LENGTH = 40000
 
@@ -120,6 +122,12 @@ export function VoiceBotSideCard() {
   const [transcript, setTranscript] = useState<Message[]>([])
   const [isSpeaking, setIsSpeaking] = useState(false)
 
+  // Chat transfer state
+  const [conversationMessages, setConversationMessages] = useState<ConversationMessage[]>([])
+  const [isTransferring, setIsTransferring] = useState(false)
+  const [transferCompleted, setTransferCompleted] = useState(false)
+  const omnichannelWidget = useOmnichannelWidget()
+
   // WebRTC refs
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null)
   const dataChannelRef = useRef<RTCDataChannel | null>(null)
@@ -129,7 +137,7 @@ export function VoiceBotSideCard() {
   const sessionDataRef = useRef<any>(null)
   const isOpeningGreeting = useRef<boolean>(false)
   const openingGreetingResponseId = useRef<string | null>(null)
-  const vadRestoreTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const vadRestoreTimeoutRef = useRef<number | null>(null)
 
   // Fetch credits on mount if strict mode
   useEffect(() => {
@@ -346,7 +354,83 @@ END OF WEBSITE CONTENT`
     openingGreetingResponseId.current = null
     setIsSpeaking(false)
 
+    // Reset chat transfer state
+    setConversationMessages([])
+    setTransferCompleted(false)
+    setIsTransferring(false)
+
     console.log('🧹 Transcript cleared and session values reset')
+  }
+
+  // Track conversation messages for chat transfer
+  const trackMessage = (role: 'user' | 'assistant', content: string) => {
+    if (!content?.trim()) return
+
+    console.log(`📝 Tracking ${role} message:`, content.substring(0, 50))
+
+    setConversationMessages(prev => [...prev, {
+      role,
+      content: content.trim(),
+      timestamp: new Date()
+    }])
+  }
+
+  // Handle chat transfer when AI calls transfer_to_chat function
+  const handleChatTransfer = async (reason?: string) => {
+    if (isTransferring || transferCompleted) {
+      console.log('⚠️ Transfer already in progress or completed')
+      return
+    }
+
+    try {
+      console.log('🔄 Starting chat transfer...', { reason, messageCount: conversationMessages.length })
+      setIsTransferring(true)
+
+      // Show initial status message
+      addToTranscript('beti', '✅ Transferring you to a human agent. Please wait...')
+
+      // Generate summary BEFORE closing session (we need the conversation data)
+      const message = generateChatTransferSummary(conversationMessages, reason)
+      console.log('📋 Generated transfer summary:', message.substring(0, 200))
+
+      // STEP 1: End voice session first
+      console.log('🛑 Ending voice session...')
+      endVoiceSession()
+
+      // Wait for session to close
+      await new Promise(resolve => setTimeout(resolve, 500))
+
+      // STEP 2: Close the side-card to clear the view
+      console.log('🚪 Closing VoiceBot side-card...')
+      setIsOpen(false)
+
+      // Wait for side-card to close
+      await new Promise(resolve => setTimeout(resolve, 500))
+
+      // STEP 3: Open chat widget with custom context (sends summary to agent workspace)
+      console.log('💬 Opening chat widget with custom context...')
+      const result = await omnichannelWidget.transferToChat(message, reason)
+
+      if (!result.success) {
+        // If there's an error message, it might be a clipboard fallback
+        if (result.error?.includes('clipboard')) {
+          alert(`Chat opened! ${result.error}`)
+        } else {
+          throw new Error(result.error)
+        }
+      }
+
+      setTransferCompleted(true)
+      console.log('✅ Chat transfer completed successfully')
+
+    } catch (error: any) {
+      console.error('❌ Chat transfer failed:', error)
+      alert(`Transfer failed: ${error.message}. Please open the chat widget manually and paste your conversation summary.`)
+      // Re-open side-card if transfer failed
+      setIsOpen(true)
+    } finally {
+      setIsTransferring(false)
+    }
   }
 
   const addToTranscript = (role: 'user' | 'beti', content: string) => {
@@ -369,6 +453,8 @@ END OF WEBSITE CONTENT`
       if (userText) {
         console.log('👤 User said:', userText)
         addToTranscript('user', userText)
+        // Track user message for chat transfer
+        trackMessage('user', userText)
       }
     }
 
@@ -382,6 +468,8 @@ END OF WEBSITE CONTENT`
       if (currentBetiResponse.current.trim()) {
         console.log('🤖 Beti said:', currentBetiResponse.current.trim())
         addToTranscript('beti', currentBetiResponse.current.trim())
+        // Track assistant message for chat transfer
+        trackMessage('assistant', currentBetiResponse.current.trim())
         currentBetiResponse.current = ''
       }
       // NOTE: Don't set isSpeaking(false) here - audio is still playing!
@@ -429,6 +517,21 @@ END OF WEBSITE CONTENT`
         console.log('🔓 Opening greeting completed - interruption now allowed')
         isOpeningGreeting.current = false
         openingGreetingResponseId.current = null
+      }
+    }
+
+    // Detect function calls (chat transfer)
+    else if (message.type === 'response.function_call_arguments.done') {
+      console.log('🔧 Function call detected:', message.name)
+      if (message.name === 'transfer_to_chat') {
+        try {
+          const args = message.arguments ? JSON.parse(message.arguments) : {}
+          console.log('📞 Transfer to chat triggered:', args)
+          handleChatTransfer(args.reason)
+        } catch (error) {
+          console.error('❌ Error parsing function arguments:', error)
+          handleChatTransfer()
+        }
       }
     }
 
@@ -524,6 +627,12 @@ CONVERSATION STYLE:
       transcriptionLanguage = 'en'
     }
 
+    // Get tools from session data (includes transfer_to_chat function)
+    const sessionData = sessionDataRef.current
+    const tools = sessionData?.tools || []
+    // IMPORTANT: Use the user's custom instructions (includes scraped website content),
+    // NOT the backend's generic instructions!
+
     const event = {
       type: 'session.update',
       session: {
@@ -539,7 +648,8 @@ CONVERSATION STYLE:
           prefix_padding_ms: 300,
           silence_duration_ms: 700 // Balanced silence duration
         },
-        modalities: ['text', 'audio']
+        modalities: ['text', 'audio'],
+        tools: tools // Add function calling tools (includes transfer_to_chat)
       }
     }
 
@@ -897,6 +1007,42 @@ CONVERSATION STYLE:
                     End Session
                   </Button>
                 </div>
+
+                {/* Widget Availability Warning */}
+                {!omnichannelWidget.isAvailable && isSessionActive && (
+                  <Alert className="bg-yellow-50 border-yellow-200">
+                    <AlertDescription className="text-yellow-800 text-sm">
+                      ⚠️ Chat widget not detected. Human transfer unavailable.
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                {/* Transfer In Progress */}
+                {isTransferring && (
+                  <Alert className="bg-blue-50 border-blue-200">
+                    <div className="flex items-center gap-3">
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                      <div>
+                        <div className="font-semibold text-blue-900">Transferring to chat...</div>
+                        <AlertDescription className="text-blue-700 text-sm">
+                          Opening chat and sending conversation summary
+                        </AlertDescription>
+                      </div>
+                    </div>
+                  </Alert>
+                )}
+
+                {/* Transfer Completed */}
+                {transferCompleted && (
+                  <Alert className="bg-green-50 border-green-200">
+                    <div>
+                      <div className="font-semibold text-green-900">✅ Transferred to Chat</div>
+                      <AlertDescription className="text-green-700 text-sm">
+                        Your conversation has been sent to chat. A human agent will assist you shortly.
+                      </AlertDescription>
+                    </div>
+                  </Alert>
+                )}
 
                 {/* Transcript */}
                 <Card className="bg-gray-50">

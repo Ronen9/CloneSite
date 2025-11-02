@@ -122,7 +122,7 @@ export function VoiceChat() {
   const sessionDataRef = useRef<any>(null)
   const isOpeningGreeting = useRef<boolean>(false)
   const openingGreetingResponseId = useRef<string | null>(null)
-  const vadRestoreTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const vadRestoreTimeoutRef = useRef<number | null>(null)
 
   const knowledgeBaseCharsRemaining = MAX_INSTRUCTIONS_LENGTH - knowledgeBase.length
   const knowledgeBaseCounterClass = knowledgeBaseCharsRemaining < 0

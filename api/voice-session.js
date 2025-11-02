@@ -166,6 +166,36 @@ module.exports = async function handler(req, res) {
     console.log(`Session ID: ${sessionId}`);
     console.log('================================');
 
+    // Define the transfer_to_chat function tool for the frontend to use
+    const tools = [
+      {
+        type: "function",
+        name: "transfer_to_chat",
+        description: "Call this function when the user explicitly requests to speak with a human agent, live representative, or real person. This transfers them to the chat widget where they can connect with a live agent.",
+        parameters: {
+          type: "object",
+          properties: {
+            reason: {
+              type: "string",
+              description: "Brief reason why user wants human assistance (optional, 1-2 sentences)"
+            }
+          },
+          required: []
+        }
+      }
+    ];
+
+    // Define enhanced instructions for escalation handling
+    const enhancedInstructions = `You are a helpful voice assistant for customer support.
+
+Key guidelines:
+- Assist customers professionally and courteously
+- If customer requests to speak with a human agent, live representative, or real person, immediately call the transfer_to_chat function
+- Common escalation phrases: "human", "agent", "representative", "real person", "live help"
+- Acknowledge their request: "I'll transfer you to a human agent right away"
+
+Always be polite and helpful.`;
+
     return res.status(200).json({
       success: true,
       sessionId: sessionId,
@@ -173,7 +203,9 @@ module.exports = async function handler(req, res) {
       deployment: deployment,
       endpoint: webrtcEndpoint,
       region: region, // Include region for debugging
-      azureEndpoint: endpoint // Include original endpoint for debugging
+      azureEndpoint: endpoint, // Include original endpoint for debugging
+      tools: tools,
+      instructions: enhancedInstructions
     });
 
   } catch (error) {
