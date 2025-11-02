@@ -128,6 +128,9 @@ export function VoiceBotSideCard() {
   const [transferCompleted, setTransferCompleted] = useState(false)
   const omnichannelWidget = useOmnichannelWidget()
 
+  // Track pending transfer (waiting for goodbye message to complete)
+  const pendingTransferRef = useRef<{ reason?: string; responseId?: string } | null>(null)
+
   // WebRTC refs
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null)
   const dataChannelRef = useRef<RTCDataChannel | null>(null)
@@ -358,6 +361,7 @@ END OF WEBSITE CONTENT`
     setConversationMessages([])
     setTransferCompleted(false)
     setIsTransferring(false)
+    pendingTransferRef.current = null
 
     console.log('🧹 Transcript cleared and session values reset')
   }
@@ -512,11 +516,21 @@ END OF WEBSITE CONTENT`
     // Track when response is done (to release opening greeting protection)
     else if (message.type === 'response.done') {
       console.log('✅ Response done:', message.response?.id)
+
       // If this was the opening greeting, release the protection
       if (message.response?.id === openingGreetingResponseId.current) {
         console.log('🔓 Opening greeting completed - interruption now allowed')
         isOpeningGreeting.current = false
         openingGreetingResponseId.current = null
+      }
+
+      // If there's a pending transfer and this response just completed, execute the transfer
+      if (pendingTransferRef.current && message.response?.id === pendingTransferRef.current.responseId) {
+        console.log('🎤 Goodbye message completed - executing transfer now')
+        const { reason } = pendingTransferRef.current
+        pendingTransferRef.current = null
+        // Execute transfer after Betti finished speaking
+        handleChatTransfer(reason)
       }
     }
 
@@ -526,11 +540,21 @@ END OF WEBSITE CONTENT`
       if (message.name === 'transfer_to_chat') {
         try {
           const args = message.arguments ? JSON.parse(message.arguments) : {}
-          console.log('📞 Transfer to chat triggered:', args)
-          handleChatTransfer(args.reason)
+          console.log('📞 Transfer to chat triggered - waiting for goodbye message to complete:', args)
+
+          // DON'T execute transfer immediately - wait for Betti to finish saying goodbye
+          // Store the pending transfer with the response ID
+          pendingTransferRef.current = {
+            reason: args.reason,
+            responseId: message.response_id  // Track which response contains the goodbye
+          }
+
+          console.log('⏳ Pending transfer set - will execute after response.done for:', message.response_id)
         } catch (error) {
           console.error('❌ Error parsing function arguments:', error)
-          handleChatTransfer()
+          pendingTransferRef.current = {
+            responseId: message.response_id
+          }
         }
       }
     }
