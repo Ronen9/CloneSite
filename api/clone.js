@@ -59,11 +59,10 @@ async function directHtmlFetch(url, chatScript) {
         </style>`
       );
       
-      // Remove potentially problematic scripts but preserve chat widgets and essential scripts
-      htmlContent = htmlContent.replace(/<script\b(?![^>]*(?:chat|widget|omnichannel|livechat|jquery|bootstrap|cdn|font|css))[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+      // Fix relative URLs first
       htmlContent = htmlContent.replace(/src="\/([^"]*?)"/g, `src="${baseUrl}/$1"`);
       htmlContent = htmlContent.replace(/href="\/([^"]*?)"/g, `href="${baseUrl}/$1"`);
-      htmlContent = htmlContent.replace(/url\(['"]?\/([^'")\s]*?)['"]?\)/g, `url('${baseUrl}/$1')`);
+      htmlContent = htmlContent.replace(/url\(['"]?\/([^')\s]*?)['"]?\)/g, `url('${baseUrl}/$1')`);
 
       return { success: true, html: htmlContent };
     }
@@ -156,12 +155,7 @@ module.exports = async function handler(req, res) {
           console.log('🐛 DEBUG: Script to inject:', scriptToInject.substring(0, 200) + '...');
           console.log('🐛 DEBUG: HTML content length before injection:', htmlContent.length);
           
-          // First, remove potentially problematic scripts but preserve chat widgets and essential scripts
-          console.log('🐛 DEBUG: HTML content length before script removal:', htmlContent.length);
-          htmlContent = htmlContent.replace(/<script\b(?![^>]*(?:chat|widget|omnichannel|livechat|jquery|bootstrap|cdn|font|css))[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
-          console.log('🐛 DEBUG: HTML content length after script removal:', htmlContent.length);
-          
-          // Then inject the chat script into the head
+          // Inject the chat script into the head
           htmlContent = htmlContent.replace(
             '<head>',
             `<head>

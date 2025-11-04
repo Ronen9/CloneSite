@@ -128,8 +128,8 @@ export function VoiceBotSideCard() {
   const [transferCompleted, setTransferCompleted] = useState(false)
   const omnichannelWidget = useOmnichannelWidget()
 
-  // Track pending transfer (waiting for goodbye message to complete)
-  const pendingTransferRef = useRef<{ reason?: string; responseId?: string } | null>(null)
+  // Track pending transfers until Beti finishes the goodbye message
+  const pendingTransferRef = useRef<{ reason?: string } | null>(null)
 
   // WebRTC refs
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null)
@@ -355,13 +355,13 @@ END OF WEBSITE CONTENT`
     currentBetiResponse.current = ''
     isOpeningGreeting.current = false
     openingGreetingResponseId.current = null
+    pendingTransferRef.current = null
     setIsSpeaking(false)
 
     // Reset chat transfer state
     setConversationMessages([])
     setTransferCompleted(false)
     setIsTransferring(false)
-    pendingTransferRef.current = null
 
     console.log('🧹 Transcript cleared and session values reset')
   }
@@ -470,10 +470,43 @@ END OF WEBSITE CONTENT`
     // When response is done, add the complete Beti message
     else if (message.type === 'response.audio_transcript.done') {
       if (currentBetiResponse.current.trim()) {
-        console.log('🤖 Beti said:', currentBetiResponse.current.trim())
-        addToTranscript('beti', currentBetiResponse.current.trim())
+        const betiMessage = currentBetiResponse.current.trim()
+        console.log('🤖 Beti said:', betiMessage)
+        addToTranscript('beti', betiMessage)
         // Track assistant message for chat transfer
-        trackMessage('assistant', currentBetiResponse.current.trim())
+        trackMessage('assistant', betiMessage)
+
+        // Check if Betti said the transfer goodbye phrase
+        // Look for key phrases that indicate transfer
+        const lowerMessage = betiMessage.toLowerCase()
+        const transferPhrases = [
+          // English phrases
+          "i'll transfer you",
+          "ill transfer you",
+          "i will transfer you",
+          "transfer you to a human",
+          "transfer you to a representative",
+          "transferring you to",
+          // Hebrew phrases - multiple verb conjugations
+          "אעביר אותך",      // I will transfer you (future, masculine)
+          "אעביר אותה",      // I will transfer her
+          "מעביר אותך",      // transferring you (present, masculine)
+          "מעבירה אותך",     // transferring you (present, feminine) - BETTI USES THIS
+          "מעביר אותה",      // transferring her
+          "מעבירה אותה",     // transferring her (feminine)
+          "העברה לנציג",     // transfer to representative
+          "העברה לשירות",    // transfer to service
+          "לנציג אנושי",     // to human representative
+        ]
+
+        const isTransferMessage = transferPhrases.some(phrase =>
+          lowerMessage.includes(phrase.toLowerCase())
+        )
+
+        if (isTransferMessage) {
+          pendingTransferRef.current = { reason: 'Customer requested human assistance' }
+        }
+
         currentBetiResponse.current = ''
       }
       // NOTE: Don't set isSpeaking(false) here - audio is still playing!
@@ -490,6 +523,16 @@ END OF WEBSITE CONTENT`
     else if (message.type === 'output_audio_buffer.stopped') {
       console.log('🔇 Beti stopped speaking (audio buffer stopped)')
       setIsSpeaking(false)
+
+      const pendingTransfer = pendingTransferRef.current
+      if (pendingTransfer) {
+        pendingTransferRef.current = null
+
+        // Small delay keeps transition smooth for the listener
+        setTimeout(() => {
+          handleChatTransfer(pendingTransfer.reason)
+        }, 500)
+      }
     }
 
     // Track when user starts speaking (to stop waveform during interruption)
@@ -523,41 +566,9 @@ END OF WEBSITE CONTENT`
         isOpeningGreeting.current = false
         openingGreetingResponseId.current = null
       }
-
-      // If there's a pending transfer and this response just completed, execute the transfer
-      if (pendingTransferRef.current && message.response?.id === pendingTransferRef.current.responseId) {
-        console.log('🎤 Goodbye message completed - executing transfer now')
-        const { reason } = pendingTransferRef.current
-        pendingTransferRef.current = null
-        // Execute transfer after Betti finished speaking
-        handleChatTransfer(reason)
-      }
     }
 
-    // Detect function calls (chat transfer)
-    else if (message.type === 'response.function_call_arguments.done') {
-      console.log('🔧 Function call detected:', message.name)
-      if (message.name === 'transfer_to_chat') {
-        try {
-          const args = message.arguments ? JSON.parse(message.arguments) : {}
-          console.log('📞 Transfer to chat triggered - waiting for goodbye message to complete:', args)
-
-          // DON'T execute transfer immediately - wait for Betti to finish saying goodbye
-          // Store the pending transfer with the response ID
-          pendingTransferRef.current = {
-            reason: args.reason,
-            responseId: message.response_id  // Track which response contains the goodbye
-          }
-
-          console.log('⏳ Pending transfer set - will execute after response.done for:', message.response_id)
-        } catch (error) {
-          console.error('❌ Error parsing function arguments:', error)
-          pendingTransferRef.current = {
-            responseId: message.response_id
-          }
-        }
-      }
-    }
+    // Note: Function calling has been removed - we now detect transfer via transcript phrases
 
     // Track response cancellation due to interruption
     else if (message.type === 'response.cancelled') {
@@ -678,7 +689,7 @@ CONVERSATION STYLE:
           silence_duration_ms: 700 // Balanced silence duration
         },
         modalities: ['text', 'audio'],
-        tools: tools // Add function calling tools (includes transfer_to_chat)
+        tools: tools // Will be empty array - we detect transfer via transcript instead
       }
     }
 

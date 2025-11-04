@@ -84,17 +84,7 @@ async function directHtmlFetch(url, chatScript) {
         </style>`
       );
       
-      // Remove potentially problematic scripts but keep essential ones and chat widgets
-      htmlContent = htmlContent.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, (match) => {
-        // Keep essential scripts (like those for CSS frameworks) and chat widgets
-        if (match.includes('css') || match.includes('style') || match.includes('font') || 
-            match.includes('chat') || match.includes('widget') || match.includes('omnichannel') || match.includes('livechat')) {
-          return match;
-        }
-        return '';
-      });
-      
-      // Fix relative URLs
+      // Fix relative URLs (don't remove scripts - they're needed for the website to function)
       htmlContent = htmlContent.replace(/src="\/([^"]*?)"/g, `src="${baseUrl}/$1"`);
       htmlContent = htmlContent.replace(/href="\/([^"]*?)"/g, `href="${baseUrl}/$1"`);
       htmlContent = htmlContent.replace(/url\(['"]?\/([^'")\s]*?)['"]?\)/g, `url('${baseUrl}/$1')`);

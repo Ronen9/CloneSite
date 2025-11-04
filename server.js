@@ -469,24 +469,9 @@ app.post('/api/voice-session', async (req, res) => {
     console.log(`Session ID: ${sessionId}`);
     console.log('================================');
 
-    // Define the transfer_to_chat function tool for the frontend to use
-    const tools = [
-      {
-        type: "function",
-        name: "transfer_to_chat",
-        description: "Call this function when the user explicitly requests to speak with a human agent, live representative, or real person. This transfers them to the chat widget where they can connect with a live agent.",
-        parameters: {
-          type: "object",
-          properties: {
-            reason: {
-              type: "string",
-              description: "Brief reason why user wants human assistance (optional, 1-2 sentences)"
-            }
-          },
-          required: []
-        }
-      }
-    ];
+    // NO function tools - we'll detect transfer requests in transcript instead
+    // This solves the Azure limitation: AI cannot generate audio AND call function in same turn
+    const tools = [];
 
     // Define enhanced instructions for escalation handling
     const enhancedInstructions = `You are a helpful voice assistant for customer support.
@@ -494,11 +479,14 @@ app.post('/api/voice-session', async (req, res) => {
 Key guidelines:
 - Assist customers professionally and courteously
 - If customer requests to speak with a human agent, live representative, or real person:
-  1. FIRST say a warm goodbye message like: "Of course! I'll transfer you to a human representative right away. Thank you for calling, and have a wonderful day!"
-  2. THEN immediately call the transfer_to_chat function
-- Common escalation phrases: "human", "agent", "representative", "real person", "live help", "speak to someone", "talk to a person"
-- IMPORTANT: Always say goodbye BEFORE calling the transfer function
-- Keep the goodbye message warm, professional, and brief (1-2 sentences)
+  * IMMEDIATELY respond with speech saying: "Of course! I'll transfer you to a human representative right away. Thank you for calling, and have a wonderful day!" (in the user's language)
+  * DO NOT call any functions or tools
+  * DO NOT wait for additional user input
+  * Just speak the transfer message immediately
+  * The system will automatically detect this phrase in your speech and handle the transfer
+- Common escalation requests to watch for: "human", "agent", "representative", "real person", "live help", "speak to someone", "talk to a person"
+- Keep your goodbye warm, professional, and brief
+- IMPORTANT: Never use function calling or tools. Only respond with speech/audio.
 
 Always be polite and helpful.`;
 
