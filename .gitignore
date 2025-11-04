@@ -78,4 +78,5 @@ node_modules
 homepage-clone/dist/
 
 # Claude Code local settings
-.claude/settings.local.json
+.claude/
+.playwright-mcp/
