@@ -155,10 +155,10 @@ module.exports = async function handler(req, res) {
           console.log('🐛 DEBUG: Script to inject:', scriptToInject.substring(0, 200) + '...');
           console.log('🐛 DEBUG: HTML content length before injection:', htmlContent.length);
           
-          // Inject the chat script into the head
+          // Inject the chat script into the head (use case-insensitive regex to match <head> with any attributes)
           htmlContent = htmlContent.replace(
-            '<head>',
-            `<head>
+            /<head([^>]*)>/i,
+            `<head$1>
             <base href="${baseUrl}/">
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
