@@ -24,7 +24,24 @@ function App() {
   const [isCloning, setIsCloning] = useState(false)
   const [isCloned, setIsCloned] = useState(false)
   const [clonedHtml, setClonedHtml] = useState<string | null>(null)
+  const [iframeUrl, setIframeUrl] = useState<string | null>(null)
   const [error, setError] = useState('')
+
+  // Create a blob URL for the iframe to avoid "about:srcdoc" base URL issues
+  useEffect(() => {
+    if (clonedHtml) {
+      const blob = new Blob([clonedHtml], { type: 'text/html' })
+      const url = URL.createObjectURL(blob)
+      setIframeUrl(url)
+
+      // Cleanup: revoke the blob URL when component unmounts or HTML changes
+      return () => {
+        URL.revokeObjectURL(url)
+      }
+    } else {
+      setIframeUrl(null)
+    }
+  }, [clonedHtml])
 
   const isValidUrl = (urlString: string | undefined) => {
     if (!urlString || !urlString.trim()) return false
@@ -88,6 +105,7 @@ function App() {
   const handleReset = () => {
     setIsCloned(false)
     setClonedHtml(null)
+    setIframeUrl(null)
     setError('')
   }
 
@@ -117,9 +135,10 @@ function App() {
               ← Back
             </Button>
             <iframe
-              srcDoc={clonedHtml}
+              src={iframeUrl || undefined}
               className="w-full h-full border-0"
               title="Cloned Website"
+              sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"
             />
             {/* VoiceBot Side Card - Only shown when website is cloned */}
             <VoiceBotSideCard />
