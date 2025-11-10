@@ -46,7 +46,7 @@ cp .env.example .env  # If you don't have .env yet
 Add these to your `.env`:
 ```env
 # Existing
-FIRECRAWL_API_KEY=fc-0515511a88e4440292549c718ed2821a
+FIRECRAWL_API_KEY=your-firecrawl-api-key-here
 
 # New - Add these lines
 AZURE_OPENAI_RESOURCE_NAME=your-resource-name-here

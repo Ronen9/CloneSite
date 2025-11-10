@@ -29,7 +29,7 @@ AZURE_OPENAI_DEPLOYMENT=ronen-deployment-gpt-4o-realtime-preview
 AZURE_OPENAI_RESOURCE=ronen-openai-realtime
 
 # Firecrawl API (for Website Scraping)
-FIRECRAWL_API_KEY=fc-0515511a88e4440292549c718ed2821a
+FIRECRAWL_API_KEY=your-firecrawl-api-key-here
 ```
 
 ### How to Add Environment Variables in Vercel

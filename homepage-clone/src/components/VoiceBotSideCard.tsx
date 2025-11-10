@@ -108,7 +108,7 @@ export function VoiceBotSideCard() {
 <!-- WEBSITE_CONTENT_MARKER -->`)
 
   // Firecrawl state
-  const [firecrawlApiKey] = useState('fc-0515511a88e4440292549c718ed2821a')
+  const [firecrawlApiKey] = useState(import.meta.env.VITE_FIRECRAWL_API_KEY || '')
   const [credits, setCredits] = useState<number | null>(null)
   const [planCredits, setPlanCredits] = useState<number | null>(null)
   const [crawlType, setCrawlType] = useState('scrape')
@@ -413,7 +413,7 @@ END OF WEBSITE CONTENT`
 
       // STEP 3: Open chat widget with custom context (sends summary to agent workspace)
       console.log('💬 Opening chat widget with custom context...')
-      const result = await omnichannelWidget.transferToChat(message, reason)
+      const result = await omnichannelWidget.transferToChat(message, reason, true) // Pass true for voice escalation
 
       if (!result.success) {
         // If there's an error message, it might be a clipboard fallback

@@ -56,7 +56,7 @@ AZURE_OPENAI_API_KEY=1FdVYUoTnKj9c5BRX6LjgwsY9WQOTaGXQODR7AZubepupsSx8hWGJQQJ99B
 AZURE_OPENAI_ENDPOINT=https://ronen-openai-realtime.openai.azure.com
 AZURE_OPENAI_DEPLOYMENT=ronen-deployment-gpt-4o-realtime-preview
 AZURE_OPENAI_RESOURCE=ronen-openai-realtime
-FIRECRAWL_API_KEY=fc-0515511a88e4440292549c718ed2821a
+FIRECRAWL_API_KEY=your-firecrawl-api-key-here
 ```
 
 **Verify:**
@@ -781,7 +781,7 @@ AZURE_OPENAI_API_KEY=1FdVYUoTnKj9c5BRX6LjgwsY9WQOTaGXQODR7AZubepupsSx8hWGJQQJ99B
 AZURE_OPENAI_ENDPOINT=https://ronen-openai-realtime.openai.azure.com
 AZURE_OPENAI_DEPLOYMENT=ronen-deployment-gpt-4o-realtime-preview
 AZURE_OPENAI_RESOURCE=ronen-openai-realtime
-FIRECRAWL_API_KEY=fc-0515511a88e4440292549c718ed2821a
+FIRECRAWL_API_KEY=your-firecrawl-api-key-here
 ```
 
 #### 10.3: Test Deployment

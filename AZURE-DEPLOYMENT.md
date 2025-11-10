@@ -70,7 +70,7 @@ az webapp create `
 az webapp config appsettings set `
   --name website-cloner-app `
   --resource-group rg-website-cloner `
-  --settings FIRECRAWL_API_KEY="fc-0515511a88e4440292549c718ed2821a"
+  --settings FIRECRAWL_API_KEY="your-firecrawl-api-key-here"
 
 # Set Node.js startup command
 az webapp config set `
@@ -322,7 +322,7 @@ az keyvault create `
 az keyvault secret set `
   --vault-name kv-website-cloner `
   --name FirecrawlApiKey `
-  --value "fc-0515511a88e4440292549c718ed2821a"
+  --value "your-firecrawl-api-key-here"
 
 # Give App Service access
 az webapp identity assign `

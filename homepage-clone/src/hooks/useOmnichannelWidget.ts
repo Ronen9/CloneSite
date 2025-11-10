@@ -29,25 +29,8 @@ const CHAT_BUTTON_SELECTORS = [
   '[class*="chat-button" i]'
 ];
 
-const TEXTAREA_SELECTORS = [
-  '[data-id="oc-lcw-textarea"]',
-  'textarea[aria-label*="message" i]',
-  'textarea[placeholder*="Type" i]',
-  'textarea[placeholder*="type" i]',
-  'textarea[id*="webchat" i]',
-  'textarea[class*="webchat" i]',
-  '#oc-lcw-textarea',
-  'textarea',  // Last resort: any textarea
-  'div[contenteditable="true"]', // Some chat widgets use contenteditable divs
-  'input[type="text"][placeholder*="message" i]'
-];
-
-const SEND_BUTTON_SELECTORS = [
-  '[data-id="oc-lcw-send-message-button"]',
-  'button[aria-label*="send" i]',
-  'button[title*="Send" i]',
-  '#oc-lcw-send-button'
-];
+// Note: TEXTAREA and SEND_BUTTON selectors removed because we cannot access
+// the chat widget UI (it's in a cross-origin iframe)
 
 /**
  * Get the iframe document where the cloned website is loaded
@@ -70,6 +53,9 @@ const getIframeDocument = (): Document | null => {
  */
 export function useOmnichannelWidget() {
   const [isAvailable, setIsAvailable] = useState(false);
+
+  // This approach doesn't work - Copilot Studio stores context on its backend servers
+  // We'll handle this differently by sending empty escalationTrigger value
 
   // Check for widget availability
   useEffect(() => {
@@ -139,6 +125,9 @@ export function useOmnichannelWidget() {
     };
   }, []);
 
+  // No longer need click interceptor since we're not using escalationTrigger context variable
+  // The chat widget will work normally when users click it
+
   /**
    * Find an element using multiple selectors, searching in ALL iframes (including nested ones)
    */
@@ -188,10 +177,14 @@ export function useOmnichannelWidget() {
 
   /**
    * Open the Omnichannel chat widget with custom context
+   * For voice escalation, we ONLY send the conversation summary to the agent workspace
+   * We do NOT use escalationTrigger context variable (causes persistence issues)
+   * Instead, we'll send a natural message that triggers escalation via Copilot Studio's topic
    */
-  const openChatWidgetWithContext = async (conversationSummary: string, reason?: string): Promise<boolean> => {
+  const openChatWidgetWithContext = async (conversationSummary: string, reason?: string, isFromVoiceEscalation: boolean = false): Promise<boolean> => {
     try {
       console.log('🔵 Opening chat widget with custom context...');
+      console.log('🔍 isFromVoiceEscalation:', isFromVoiceEscalation);
 
       // Get the iframe window (where the chat widget lives)
       const iframeWindow = (document.querySelector('iframe[title="Cloned Website"]') as HTMLIFrameElement)?.contentWindow;
@@ -200,39 +193,28 @@ export function useOmnichannelWidget() {
       // @ts-ignore
       if (iframeWindow?.Microsoft?.Omnichannel?.LiveChatWidget) {
         try {
-          console.log('📞 Using Microsoft Omnichannel API with custom context...');
+          console.log('📞 Using Microsoft Omnichannel API...');
 
-          // Prepare custom context to send to agent
-          const customContext = {
-            'voiceConversationSummary': {
-              'value': conversationSummary,
-              'isDisplayable': true  // Agent can see this in their workspace
-            },
-            'escalationReason': {
-              'value': reason || 'Customer requested human agent',
-              'isDisplayable': true
-            },
-            'sourceChannel': {
-              'value': 'Voice Bot',
-              'isDisplayable': true
-            },
-            'escalationTrigger': {
-              'value': 'voice_to_human',
-              'isDisplayable': false  // Hidden, can be used for routing rules
-            }
-          };
+          // IMPORTANT: Use setContextProvider for bot variables, NOT customContext in startChat
+          // customContext is for agent workspace display only
+          // setContextProvider makes variables available to Copilot Studio bot logic
+          if (isFromVoiceEscalation) {
+            // @ts-ignore
+            iframeWindow.Microsoft.Omnichannel.LiveChatWidget.SDK.setContextProvider(function() {
+              return {
+                'autoEscalate': {'value': 'true', 'isDisplayable': false}
+              };
+            });
+            console.log('📍 Voice escalation: Set context provider with autoEscalate flag');
+          }
 
-          console.log('📋 Custom context:', customContext);
-
-          // Start chat with custom context
+          // Start chat
           // @ts-ignore
           await iframeWindow.Microsoft.Omnichannel.LiveChatWidget.SDK.startChat({
-            inNewWindow: false,
-            customContext: customContext
+            inNewWindow: false
           });
 
-          console.log('✅ Chat opened via Omnichannel API with custom context');
-          console.log('💡 Conversation summary sent to agent workspace');
+          console.log('✅ Chat opened via Omnichannel API');
           return true;
         } catch (apiError) {
           console.warn('⚠️ Omnichannel API failed, trying DOM method:', apiError);
@@ -259,107 +241,33 @@ export function useOmnichannelWidget() {
     }
   };
 
-  /**
-   * Wait for chat widget to be fully loaded and ready
-   */
-  const waitForWidgetReady = async (): Promise<boolean> => {
-    console.log('⏳ Waiting for chat widget conversation UI to load...');
-
-    // Wait up to 30 seconds for textarea to appear (chat UI loads in nested iframe)
-    for (let i = 0; i < 60; i++) {
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      const textarea = findElement(TEXTAREA_SELECTORS);
-      if (textarea) {
-        console.log(`✅ Chat widget is ready (textarea found after ${(i + 1) * 0.5} seconds)`);
-        return true;
-      }
-
-      // Log progress every 5 seconds
-      if ((i + 1) % 10 === 0) {
-        console.log(`⏳ Still waiting... (${(i + 1) * 0.5} seconds elapsed)`);
-      }
-    }
-
-    console.warn('⚠️ Chat widget textarea not found after 30 seconds');
-    console.warn('💡 The chat conversation UI may be in a cross-origin iframe or uses a different structure');
-    return false;
-  };
-
-  /**
-   * Send a message to the chat widget
-   */
-  const sendChatMessage = async (message: string): Promise<boolean> => {
-    try {
-      console.log('💬 Sending message to chat...');
-
-      // Wait for widget to be fully ready
-      const isReady = await waitForWidgetReady();
-      if (!isReady) {
-        console.error('❌ Chat widget failed to load');
-        return false;
-      }
-
-      // Additional wait to ensure greeting message has appeared
-      console.log('⏳ Waiting for greeting message...');
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      // Find textarea
-      const textarea = findElement(TEXTAREA_SELECTORS) as HTMLTextAreaElement;
-
-      if (!textarea) {
-        console.error('❌ Chat textarea not found');
-        return false;
-      }
-
-      // Set the message value
-      textarea.value = message;
-
-      // Trigger input events to ensure the widget recognizes the change
-      textarea.dispatchEvent(new Event('input', { bubbles: true }));
-      textarea.dispatchEvent(new Event('change', { bubbles: true }));
-
-      console.log('✅ Message pasted into textarea');
-
-      // Wait a moment for the widget to process
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      // Find and click send button
-      const sendButton = findElement(SEND_BUTTON_SELECTORS) as HTMLElement;
-
-      if (!sendButton) {
-        console.error('❌ Send button not found');
-        // Message is in textarea, user can send manually
-        return false;
-      }
-
-      sendButton.click();
-      console.log('✅ Send button clicked');
-
-      return true;
-    } catch (error: any) {
-      console.error('❌ Error sending chat message:', error);
-      return false;
-    }
-  };
+  // Note: We cannot send messages programmatically to the Omnichannel chat widget
+  // because the chat UI is in a cross-origin iframe that we cannot access.
+  // Instead, we use context variables that Copilot Studio can detect.
 
   /**
    * Complete transfer flow: open widget with custom context
-   * This sends the conversation summary directly to the agent workspace via API
+   * For voice escalation, we add an auto-escalation flag that Copilot Studio can detect
    */
-  const transferToChat = async (message: string, reason?: string): Promise<TransferResult> => {
+  const transferToChat = async (message: string, reason?: string, isFromVoiceEscalation: boolean = false): Promise<TransferResult> => {
     try {
-      console.log('🔄 Starting chat transfer flow with custom context...');
+      console.log('🔄 Starting chat transfer flow...');
+      console.log('📋 isFromVoiceEscalation:', isFromVoiceEscalation);
 
-      // Open chat widget with custom context (sends summary to agent directly)
-      const opened = await openChatWidgetWithContext(message, reason);
+      // STEP 1: Open chat widget with custom context
+      const opened = await openChatWidgetWithContext(message, reason, isFromVoiceEscalation);
 
       if (!opened) {
         throw new Error('Failed to open chat widget');
       }
 
-      // Success! The custom context has been sent to the agent workspace
-      console.log('✅ Chat transfer completed - conversation summary sent to agent workspace');
+      console.log('✅ Chat widget opened successfully');
+      console.log('✅ Conversation summary sent to agent workspace');
+
+      if (isFromVoiceEscalation) {
+        console.log('🤖 Voice escalation context sent to Copilot Studio');
+        console.log('💡 Copilot Studio should detect autoEscalate flag and trigger transfer');
+      }
 
       return {
         success: true
@@ -386,8 +294,58 @@ export function useOmnichannelWidget() {
     }
   };
 
+  /**
+   * Close/End the current chat session and clear storage
+   * This clears the Omnichannel session to prevent context persistence
+   */
+  const endChat = async (): Promise<boolean> => {
+    try {
+      const iframeWindow = (document.querySelector('iframe[title="Cloned Website"]') as HTMLIFrameElement)?.contentWindow;
+
+      // Try to close chat via API
+      // @ts-ignore
+      if (iframeWindow?.Microsoft?.Omnichannel?.LiveChatWidget?.SDK?.closeChat) {
+        // @ts-ignore
+        await iframeWindow.Microsoft.Omnichannel.LiveChatWidget.SDK.closeChat();
+        console.log('✅ Chat session ended via Omnichannel API');
+      }
+
+      // IMPORTANT: Clear Omnichannel storage to prevent context persistence
+      // This ensures escalationTrigger doesn't persist to next session
+      try {
+        // Clear session storage
+        const sessionKeys = Object.keys(sessionStorage);
+        sessionKeys.forEach(key => {
+          if (key.includes('Microsoft_Omnichannel') || key.includes('oc-lcw') || key.includes('Omnichannel')) {
+            sessionStorage.removeItem(key);
+            console.log(`🧹 Cleared session storage: ${key}`);
+          }
+        });
+
+        // Clear local storage
+        const localKeys = Object.keys(localStorage);
+        localKeys.forEach(key => {
+          if (key.includes('Microsoft_Omnichannel') || key.includes('oc-lcw') || key.includes('Omnichannel')) {
+            localStorage.removeItem(key);
+            console.log(`🧹 Cleared local storage: ${key}`);
+          }
+        });
+
+        console.log('✅ Omnichannel storage cleared');
+      } catch (storageError) {
+        console.warn('⚠️ Could not clear storage:', storageError);
+      }
+
+      return true;
+    } catch (error: any) {
+      console.error('❌ Error ending chat:', error);
+      return false;
+    }
+  };
+
   return {
     isAvailable,
-    transferToChat
+    transferToChat,
+    endChat
   };
 }
