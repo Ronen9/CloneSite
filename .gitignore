@@ -61,6 +61,7 @@ nul
 homepage-clone.html
 demo-clone.html
 conversion-instructions.md
+SECURITY_CLEANUP.md
 
 # Cache
 .cache/

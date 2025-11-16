@@ -5,7 +5,7 @@
  * including opening the widget, sending messages, and handling transfer flows.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 interface TransferResult {
   success: boolean;
@@ -53,6 +53,19 @@ const getIframeDocument = (): Document | null => {
  */
 export function useOmnichannelWidget() {
   const [isAvailable, setIsAvailable] = useState(false);
+  const autoEscalateRef = useRef<'true' | 'false'>('false');
+
+  const configureContextProvider = (iframeWindow: Window | null | undefined) => {
+    const sdk = (iframeWindow as any)?.Microsoft?.Omnichannel?.LiveChatWidget?.SDK;
+    if (!sdk?.setContextProvider) {
+      return;
+    }
+
+    sdk.setContextProvider(() => ({
+      autoEscalate: autoEscalateRef.current  // Plain value, not wrapped object
+    }));
+    console.log('🧭 Context provider configured with autoEscalate =', autoEscalateRef.current);
+  };
 
   // This approach doesn't work - Copilot Studio stores context on its backend servers
   // We'll handle this differently by sending empty escalationTrigger value
@@ -62,6 +75,7 @@ export function useOmnichannelWidget() {
     let mounted = true;
     let checkCount = 0;
     const MAX_CHECKS = 60; // Check for 60 seconds (widget loads after page loads)
+    let lcwReadyListenerAdded = false;
 
     const checkWidget = () => {
       if (!mounted) return;
@@ -80,6 +94,18 @@ export function useOmnichannelWidget() {
         if (iframeWindow?.Microsoft?.Omnichannel?.LiveChatWidget) {
           found = true;
           console.log('✅ Chat widget detected via Microsoft Omnichannel API in iframe');
+
+          // IMPORTANT: Wait for lcw:ready event before configuring context provider
+          if (!lcwReadyListenerAdded) {
+            lcwReadyListenerAdded = true;
+            iframeWindow.addEventListener('lcw:ready', () => {
+              if (mounted) {
+                console.log('🎉 lcw:ready event received - configuring context provider');
+                configureContextProvider(iframeWindow);
+              }
+            });
+            console.log('👂 Listening for lcw:ready event...');
+          }
         }
 
         // Method 2: Try to find chat button in iframe using any of the selectors
@@ -195,24 +221,28 @@ export function useOmnichannelWidget() {
         try {
           console.log('📞 Using Microsoft Omnichannel API...');
 
-          // IMPORTANT: Use setContextProvider for bot variables, NOT customContext in startChat
-          // customContext is for agent workspace display only
-          // setContextProvider makes variables available to Copilot Studio bot logic
-          if (isFromVoiceEscalation) {
-            // @ts-ignore
-            iframeWindow.Microsoft.Omnichannel.LiveChatWidget.SDK.setContextProvider(function() {
-              return {
-                'autoEscalate': {'value': 'true', 'isDisplayable': false}
-              };
-            });
-            console.log('📍 Voice escalation: Set context provider with autoEscalate flag');
-          }
+          // Update the ref value
+          autoEscalateRef.current = isFromVoiceEscalation ? 'true' : 'false';
+          console.log('📍 Set autoEscalate flag to:', autoEscalateRef.current);
 
-          // Start chat
+          // IMPORTANT: Reconfigure context provider with updated value before starting chat
+          // This ensures Copilot Studio gets the current value
+          configureContextProvider(iframeWindow);
+          console.log('🔄 Context provider reconfigured before starting chat');
+
+          // Start chat with customContext for synchronous context passing
+          // customContext format: {key: {value: 'val', isDisplayable: bool}}
           // @ts-ignore
           await iframeWindow.Microsoft.Omnichannel.LiveChatWidget.SDK.startChat({
-            inNewWindow: false
+            inNewWindow: false,
+            customContext: {
+              autoEscalate: {
+                value: autoEscalateRef.current,
+                isDisplayable: false
+              }
+            }
           });
+          console.log('✅ Chat started with customContext: autoEscalate =', autoEscalateRef.current);
 
           console.log('✅ Chat opened via Omnichannel API');
           return true;
@@ -335,6 +365,10 @@ export function useOmnichannelWidget() {
       } catch (storageError) {
         console.warn('⚠️ Could not clear storage:', storageError);
       }
+
+      // Reset the flag for next conversation
+      autoEscalateRef.current = 'false';
+      console.log('🔁 autoEscalate flag reset to false after ending chat');
 
       return true;
     } catch (error: any) {
