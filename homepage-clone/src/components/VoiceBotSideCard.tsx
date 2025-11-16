@@ -88,7 +88,7 @@ export function VoiceBotSideCard() {
   // Voice configuration
   const [voice, setVoice] = useState('coral')
   const [temperature, setTemperature] = useState(0.7)
-  const [language, setLanguage] = useState('hebrew')
+  const [language, setLanguage] = useState('auto')
 
   // Knowledge base
   const [strictMode, setStrictMode] = useState(false)
@@ -103,7 +103,6 @@ export function VoiceBotSideCard() {
 בטי זו נקבה.
 פנה ללקוח לפי המגדר שלו או שלה. בתחילת השיחה תוכל לזהות את הפונה לפי איך שהוא מזדהה או מציג את עצמו או עמצה.
 בטי עונה תשובות קצרות לא יותר מ 3 עד 4 משפטים אלא אם כן בתשובה נדרש פירוט נרחב יותר.
-
 
 <!-- WEBSITE_CONTENT_MARKER -->`)
 
