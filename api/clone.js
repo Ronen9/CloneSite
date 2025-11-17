@@ -161,7 +161,9 @@ module.exports = async function handler(req, res) {
       console.log(`🔄 Cloning: ${url}`);
 
       // Check if URL is from a geo-restricted region (like Israel)
-      const isGeoRestrictedDomain = url.includes('.co.il') || url.includes('sheba.co.il');
+      // Only check the hostname, not the full URL path
+      const hostname = new URL(url).hostname;
+      const isGeoRestrictedDomain = hostname.endsWith('.co.il');
 
       if (isGeoRestrictedDomain) {
         console.log('🌍 Geo-restricted domain detected, skipping Firecrawl and using direct fetch');

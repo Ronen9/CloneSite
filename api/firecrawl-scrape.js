@@ -63,7 +63,9 @@ module.exports = async function handler(req, res) {
     }
 
     // Check for geo-restricted domains that Firecrawl can't access
-    const isGeoRestrictedDomain = url.includes('.co.il');
+    // Only check the hostname, not the full URL path
+    const hostname = new URL(url).hostname;
+    const isGeoRestrictedDomain = hostname.endsWith('.co.il');
 
     if (isGeoRestrictedDomain) {
       return res.status(400).json({

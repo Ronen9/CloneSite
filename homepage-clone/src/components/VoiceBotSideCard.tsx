@@ -193,7 +193,9 @@ export function VoiceBotSideCard() {
       }
 
       // Check if this is a geo-restricted domain (Israeli sites)
-      const isGeoRestricted = websiteUrl.includes('.co.il')
+      // Only check the hostname, not the full URL path
+      const hostname = new URL(websiteUrl).hostname
+      const isGeoRestricted = hostname.endsWith('.co.il')
 
       // For geo-restricted domains, use the clone API instead of Firecrawl
       if (isGeoRestricted) {

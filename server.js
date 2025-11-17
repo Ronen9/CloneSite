@@ -42,7 +42,9 @@ app.post(['/clone', '/api/clone'], async (req, res) => {
     console.log('🐛 DEBUG: Received chatScript:', chatScript ? 'PROVIDED' : 'NULL'); // Debug log
 
     // Check if this is a geo-restricted Israeli domain - skip Firecrawl
-    const isGeoRestricted = url.includes('.co.il');
+    // Only check the hostname, not the full URL path
+    const hostname = new URL(url).hostname;
+    const isGeoRestricted = hostname.endsWith('.co.il');
     if (isGeoRestricted) {
       console.log('🌍 Geo-restricted Israeli domain detected, skipping Firecrawl');
       throw new Error('Geo-restricted domain - using direct fetch');
