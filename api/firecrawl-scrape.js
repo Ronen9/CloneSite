@@ -62,6 +62,16 @@ module.exports = async function handler(req, res) {
       return res.status(400).json({ error: 'Type must be "scrape" or "crawl"' });
     }
 
+    // Check for geo-restricted domains that Firecrawl can't access
+    const isGeoRestrictedDomain = url.includes('.co.il');
+
+    if (isGeoRestrictedDomain) {
+      return res.status(400).json({
+        error: 'This website is geo-restricted. Please use the Clone feature instead, which uses direct fetch to bypass geo-blocking.',
+        suggestion: 'Use the "Clone Website" button instead of "Scrape Website"'
+      });
+    }
+
     // Handle Quick Scrape (single page)
     if (type === 'scrape') {
       const response = await fetch('https://api.firecrawl.dev/v1/scrape', {

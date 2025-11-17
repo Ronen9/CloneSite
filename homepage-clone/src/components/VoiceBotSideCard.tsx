@@ -192,7 +192,47 @@ export function VoiceBotSideCard() {
         maxPages = parseInt(crawlType.split('-')[1])
       }
 
-      // Start the crawl/scrape
+      // Check if this is a geo-restricted domain (Israeli sites)
+      const isGeoRestricted = websiteUrl.includes('.co.il')
+
+      // For geo-restricted domains, use the clone API instead of Firecrawl
+      if (isGeoRestricted) {
+        setCrawlStatus('🌍 Geo-restricted domain detected. Using direct fetch...')
+
+        const cloneResponse = await fetch('/api/clone', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            url: websiteUrl,
+            chatScript: '' // No chat script needed for knowledge base
+          })
+        })
+
+        if (!cloneResponse.ok) {
+          const errorData = await cloneResponse.json()
+          throw new Error(errorData.error || `Clone failed with status ${cloneResponse.status}`)
+        }
+
+        const cloneData = await cloneResponse.json()
+
+        if (cloneData.textContent || cloneData.html) {
+          // Use extracted text content from server (cleaner than client-side extraction)
+          const textContent = cloneData.textContent || cloneData.html
+
+          // Process as if it came from Firecrawl
+          processContent({
+            content: textContent,
+            pageCount: 1,
+            creditsUsed: 0,
+            type: 'scrape'
+          }, 'scrape', 1)
+          return
+        } else {
+          throw new Error('No content received from clone API')
+        }
+      }
+
+      // Start the crawl/scrape (for non-geo-restricted domains)
       const response = await fetch('/api/firecrawl-scrape', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

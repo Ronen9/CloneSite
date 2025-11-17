@@ -40,7 +40,14 @@ app.post(['/clone', '/api/clone'], async (req, res) => {
   try {
     console.log(`🔄 Cloning: ${url}`);
     console.log('🐛 DEBUG: Received chatScript:', chatScript ? 'PROVIDED' : 'NULL'); // Debug log
-    
+
+    // Check if this is a geo-restricted Israeli domain - skip Firecrawl
+    const isGeoRestricted = url.includes('.co.il');
+    if (isGeoRestricted) {
+      console.log('🌍 Geo-restricted Israeli domain detected, skipping Firecrawl');
+      throw new Error('Geo-restricted domain - using direct fetch');
+    }
+
     const response = await axios.post(
       "https://api.firecrawl.dev/v0/scrape",
       {
@@ -342,9 +349,11 @@ app.post(['/clone', '/api/clone'], async (req, res) => {
         size: `${(fallbackResult.html.length / 1024).toFixed(2)} KB`,
         status: "Successfully cloned (direct fetch)",
         previewHtml: fallbackResult.html,
-        html: fallbackResult.html
+        html: fallbackResult.html,
+        textContent: fallbackResult.textContent || '' // Add extracted text
       });
       console.log(`✅ Successfully cloned via direct fetch: ${url}`);
+      console.log(`📝 Text content included: ${(fallbackResult.textContent || '').length} characters`);
       return;
     }
   } catch (fallbackError) {
