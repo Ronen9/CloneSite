@@ -63,6 +63,10 @@ demo-clone.html
 conversion-instructions.md
 SECURITY_CLEANUP.md
 
+# Test files
+test-*.json
+extracted-text.txt
+
 # Cache
 .cache/
 .parcel-cache/
