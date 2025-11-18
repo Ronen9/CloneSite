@@ -8,12 +8,15 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { SplashCursor } from '@/components/ui/splash-cursor'
 import { VoiceChat } from '@/components/VoiceChat'
 import { VoiceBotSideCard } from '@/components/VoiceBotSideCard'
-import { Globe, Code, Sparkle, WarningCircle, Microphone } from '@phosphor-icons/react'
+import { Globe, Code, Sparkle, WarningCircle, Microphone, CaretDown, CaretUp } from '@phosphor-icons/react'
 import { motion, AnimatePresence } from 'framer-motion'
 
 function App() {
   // Tab navigation state
   const [activeTab, setActiveTab] = useState<'clone' | 'voice'>('clone')
+
+  // Collapse/expand state for chat script textarea
+  const [isScriptExpanded, setIsScriptExpanded] = useState(false)
   
   // Replaced Spark KV (was causing 401 Unauthorized) with local state + localStorage persistence
   const [url, setUrl] = useState<string>(() => localStorage.getItem('website-url') || '')
@@ -221,20 +224,53 @@ function App() {
                     </div>
 
                     <div className="space-y-3">
-                      <Label 
-                        htmlFor="chat-script" 
-                        className="text-sm font-medium uppercase tracking-wide flex items-center gap-2 text-muted-foreground"
+                      <div
+                        onClick={() => setIsScriptExpanded(!isScriptExpanded)}
+                        className="flex items-center justify-between cursor-pointer group"
                       >
-                        <Code className="text-secondary" weight="duotone" size={18} />
-                        Chat Widget Script (Optional)
-                      </Label>
-                      <Textarea
-                        id="chat-script"
-                        placeholder='<script src="..."></script>'
-                        value={script}
-                        onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setScript(e.target.value)}
-                        className="min-h-[120px] px-4 py-3 text-sm font-mono border-2 focus:border-secondary focus:ring-4 focus:ring-secondary/20 transition-all resize-none"
-                      />
+                        <Label
+                          htmlFor="chat-script"
+                          className="text-sm font-medium uppercase tracking-wide flex items-center gap-2 text-muted-foreground cursor-pointer"
+                        >
+                          <Code className="text-secondary" weight="duotone" size={18} />
+                          Chat Widget Script (Optional)
+                        </Label>
+                        <button
+                          type="button"
+                          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          {isScriptExpanded ? (
+                            <>
+                              <CaretUp size={16} weight="bold" />
+                              <span>Collapse</span>
+                            </>
+                          ) : (
+                            <>
+                              <CaretDown size={16} weight="bold" />
+                              <span>Expand</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                      <AnimatePresence>
+                        {isScriptExpanded && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.3, ease: 'easeInOut' }}
+                            style={{ overflow: 'hidden' }}
+                          >
+                            <Textarea
+                              id="chat-script"
+                              placeholder='<script src="..."></script>'
+                              value={script}
+                              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setScript(e.target.value)}
+                              className="min-h-[120px] px-4 py-3 text-sm font-mono border-2 focus:border-secondary focus:ring-4 focus:ring-secondary/20 transition-all resize-none"
+                            />
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
 
                     {error && (
