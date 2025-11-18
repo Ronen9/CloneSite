@@ -41,15 +41,6 @@ app.post(['/clone', '/api/clone'], async (req, res) => {
     console.log(`🔄 Cloning: ${url}`);
     console.log('🐛 DEBUG: Received chatScript:', chatScript ? 'PROVIDED' : 'NULL'); // Debug log
 
-    // Check if this is a geo-restricted Israeli domain - skip Firecrawl
-    // Only check the hostname, not the full URL path
-    const hostname = new URL(url).hostname;
-    const isGeoRestricted = hostname.endsWith('.co.il');
-    if (isGeoRestricted) {
-      console.log('🌍 Geo-restricted Israeli domain detected, skipping Firecrawl');
-      throw new Error('Geo-restricted domain - using direct fetch');
-    }
-
     const response = await axios.post(
       "https://api.firecrawl.dev/v0/scrape",
       {
@@ -321,6 +312,17 @@ app.post(['/clone', '/api/clone'], async (req, res) => {
     }
 
     if (htmlContent) {
+      // Check if this is a bot-detection/blocking page from Firecrawl
+      const isBotDetectionPage =
+        htmlContent.includes('User-Agent string appears to be from an automated process') ||
+        htmlContent.includes('appears to be from an automated') ||
+        (htmlContent.includes('Microsoft') && htmlContent.includes('English') && htmlContent.length < 10000);
+
+      if (isBotDetectionPage) {
+        console.log('⚠️ Bot detection page detected, falling back to direct fetch...');
+        throw new Error('Bot detection page - using direct fetch fallback');
+      }
+
       res.json({
         success: true,
         url: url,

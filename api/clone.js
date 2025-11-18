@@ -160,16 +160,6 @@ module.exports = async function handler(req, res) {
     try {
       console.log(`🔄 Cloning: ${url}`);
 
-      // Check if URL is from a geo-restricted region (like Israel)
-      // Only check the hostname, not the full URL path
-      const hostname = new URL(url).hostname;
-      const isGeoRestrictedDomain = hostname.endsWith('.co.il');
-
-      if (isGeoRestrictedDomain) {
-        console.log('🌍 Geo-restricted domain detected, skipping Firecrawl and using direct fetch');
-        throw new Error('Geo-restricted domain - using direct fetch');
-      }
-
       // Log Firecrawl request
       console.log('Firecrawl request payload:', {
         url: url,
@@ -251,6 +241,17 @@ module.exports = async function handler(req, res) {
       }
 
       if (htmlContent) {
+        // Check if this is a bot-detection/blocking page from Firecrawl
+        const isBotDetectionPage =
+          htmlContent.includes('User-Agent string appears to be from an automated process') ||
+          htmlContent.includes('appears to be from an automated') ||
+          (htmlContent.includes('Microsoft') && htmlContent.includes('English') && htmlContent.length < 10000);
+
+        if (isBotDetectionPage) {
+          console.log('⚠️ Bot detection page detected, falling back to direct fetch...');
+          throw new Error('Bot detection page - using direct fetch fallback');
+        }
+
         // Extract clean text for knowledge base
         const extractedText = extractTextFromHtml(htmlContent);
 
