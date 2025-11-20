@@ -2,8 +2,6 @@
 const axios = require('axios');
 const { JSDOM } = require('jsdom');
 
-const firecrawlApiKey = process.env.FIRECRAWL_API_KEY;
-
 // Helper: extract clean text content from HTML
 function extractTextFromHtml(html) {
   try {
@@ -153,7 +151,11 @@ module.exports = async function handler(req, res) {
       return res.status(400).json({ error: 'URL is required' });
     }
 
+    // Access environment variable inside the handler function (important for Vercel serverless)
+    const firecrawlApiKey = process.env.FIRECRAWL_API_KEY;
+
     if (!firecrawlApiKey) {
+      console.error('FIRECRAWL_API_KEY is missing in environment variables');
       return res.status(500).json({ error: 'Server configuration error. Missing FIRECRAWL_API_KEY.' });
     }
 
