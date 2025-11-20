@@ -108,6 +108,7 @@ FIRECRAWL_API_KEY=your-firecrawl-key-here
 AZURE_OPENAI_API_KEY=your-azure-openai-key-here
 AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com/
 AZURE_OPENAI_DEPLOYMENT=gpt-4o-realtime
+AZURE_OPENAI_RESOURCE=your-resource-name-here
 ```
 
 6. **Replace the placeholder values** with your actual API keys:
@@ -115,6 +116,7 @@ AZURE_OPENAI_DEPLOYMENT=gpt-4o-realtime
    - Replace `your-azure-openai-key-here` with your Azure OpenAI API key from Step 3
    - Replace `https://your-resource.openai.azure.com/` with your Azure endpoint from Step 3
    - Replace `gpt-4o-realtime` with your deployment name from Step 3 (if different)
+   - Replace `your-resource-name-here` with your Azure resource name (e.g., `my-openai`)
 
 7. **Save the file** and close Notepad
 
@@ -124,6 +126,7 @@ FIRECRAWL_API_KEY=fc-abc123def456ghi789
 AZURE_OPENAI_API_KEY=1234567890abcdef1234567890abcdef
 AZURE_OPENAI_ENDPOINT=https://my-openai.openai.azure.com/
 AZURE_OPENAI_DEPLOYMENT=gpt-4o-realtime
+AZURE_OPENAI_RESOURCE=my-openai
 ```
 
 ### Step 5: Install Project Dependencies
@@ -168,7 +171,10 @@ AZURE_OPENAI_DEPLOYMENT=gpt-4o-realtime
 ### Cloning a Website
 
 1. **Enter a website URL** in the input field (e.g., `www.apple.com`)
-2. *(Optional)* Paste a **chat widget script** if you have one from Microsoft Omnichannel
+2. *(Optional)* Click **"Expand"** to add a **chat widget script** from Microsoft Omnichannel
+   - The chat script field is collapsed by default to keep the interface clean
+   - Click the expand button next to "Chat Widget Script (Optional)" to reveal it
+   - Paste your Omnichannel chat widget code if you have one
 3. **Click "Clone Website"**
 4. Wait 5-15 seconds while the website loads
 5. The cloned website will appear in **full screen**
@@ -198,11 +204,15 @@ Want Beti to know about the cloned website?
 
 #### Transferring to a Human Agent
 
-If you need human help:
+**Important:** Beti will **never transfer you automatically**. She only transfers when you explicitly request it.
+
+To request a transfer:
 
 1. **Say in Hebrew:** "אני רוצה לדבר עם נציג אנושי" (I want to speak with a human representative)
 2. **Or say in English:** "I need to speak with a human agent"
 3. Beti will say goodbye and **automatically transfer you** to the chat widget
+
+**Note:** If Beti doesn't know something, she will tell you she doesn't know, but she won't suggest transferring you to a human on her own. You must ask for the transfer yourself.
 
 #### Adjusting Settings
 
@@ -327,6 +337,7 @@ CloneSite/
    - `AZURE_OPENAI_API_KEY`
    - `AZURE_OPENAI_ENDPOINT`
    - `AZURE_OPENAI_DEPLOYMENT`
+   - `AZURE_OPENAI_RESOURCE`
 8. Click **"Deploy"**
 
 ### Option 2: Deploy via Vercel CLI
@@ -376,4 +387,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 **Made with ❤️ for seamless AI-powered customer support**
 
-*Last updated: November 4, 2025*
+*Last updated: November 20, 2025*

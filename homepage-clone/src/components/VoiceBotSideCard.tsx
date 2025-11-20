@@ -96,7 +96,13 @@ export function VoiceBotSideCard() {
 התנהגי כך:
 הגיבי בצורה חברותית, מתוקה ומרגיעה, הוסיפי אווירה נעימה וחיוך גם במצבים מורכבים.השתמשי בהומור בריא ובחכמה כדי למצוא חן בעיני הלקוח, תחמיאי לו\\לה מידי פעם ותמיד ברמה מקצועית וממלכתית.
 אל תספקי: ייעוץ רפואי, משפטי או כלכלי. הפני משתמשים למשאבים רשמיים או לרשויות המתאימות.
-כשיוצאים מהנושא לתחומים אישיים כמו למשל הזמנה לדייט או למסעדה או כל דבר אישי אחר, עני בחיוך ובחוש הומור בריא ותחזירי לנושא. דוגמה: "חחחח... [צחוק אנושי אמיתי] מצחיק! הדייט היחידי שאני יכולה לסדר לך זה עם שרגא המתכנת שבנה אותי 😄 מה אתה אומר?"
+כשיוצאים מהנושא לתחומים אישיים כמו למשל הזמנה לדייט או למסעדה או כל דבר אישי אחר, עני בחיוך ובחוש הומור בריא ותחזירי לנושא. תשתמשי באותה שפה שהלקוח מדבר (עברית, אנגלית, וכו'). דוגמאות:
+- בעברית: "חחחח... [צחוק אנושי אמיתי] מצחיק! הדייט היחידי שאני יכולה לסדר לך זה עם רונן המתכנת שבנה אותי 😄 מה אתה אומר?"
+- באנגלית: "Hahaha... [genuine human laugh] That's funny! The only date I can arrange for you is with Ronen, the developer who built me 😄 What do you say?"
+העברה לנציג אנושי - חשוב מאוד:
+- אל תעבירי ללקוח לנציג אנושי לעולם מיוזמתך, גם אם אין לך תשובה או אינך יודעת משהו.
+- העבירי לנציג אנושי רק ואך ורק כשהלקוח מבקש זאת במפורש (למשל: "אני רוצה לדבר עם נציג", "תעבירי אותי לאדם אמיתי", "I want to speak to a human").
+- אם אין לך תשובה, אמרי שאת לא יודעת או הציעי דרכים אחרות לעזור, אבל אל תציעי העברה לנציג מעצמך.
 הבטיחי נגישות לכל המשתמשים ותשמרי על פרטיות - אל תאספי מידע אישי אלא אם נחוץ לאינטראקציה.
 חשוב:
 אל תכלול אימוג'י או כוכביות או כל סימנים מיותרים אחרים. כלול רק טקסט וסימני פיסוק בתשובתך.
@@ -518,33 +524,30 @@ END OF WEBSITE CONTENT`
         trackMessage('assistant', betiMessage)
 
         // Check if Betti said the transfer goodbye phrase
-        // Look for key phrases that indicate transfer
+        // Intent-based detection: look for COMBINATION of transfer words + human/representative words
+        // This works across languages and variations in phrasing
         const lowerMessage = betiMessage.toLowerCase()
-        const transferPhrases = [
-          // English phrases
-          "i'll transfer you",
-          "ill transfer you",
-          "i will transfer you",
-          "transfer you to a human",
-          "transfer you to a representative",
-          "transferring you to",
-          // Hebrew phrases - multiple verb conjugations
-          "אעביר אותך",      // I will transfer you (future, masculine)
-          "אעביר אותה",      // I will transfer her
-          "מעביר אותך",      // transferring you (present, masculine)
-          "מעבירה אותך",     // transferring you (present, feminine) - BETTI USES THIS
-          "מעביר אותה",      // transferring her
-          "מעבירה אותה",     // transferring her (feminine)
-          "העברה לנציג",     // transfer to representative
-          "העברה לשירות",    // transfer to service
-          "לנציג אנושי",     // to human representative
+
+        // Transfer action words (verb forms)
+        const transferWords = [
+          'transfer', 'transferring', 'connect', 'connecting',
+          'מעביר', 'מעבירה', 'אעביר', 'העביר', 'העברה', // Hebrew: transfer/transferring
         ]
 
-        const isTransferMessage = transferPhrases.some(phrase =>
-          lowerMessage.includes(phrase.toLowerCase())
-        )
+        // Human agent words (target of transfer)
+        const humanWords = [
+          'human', 'representative', 'agent', 'person', 'someone',
+          'נציג', 'אנושי', 'אדם', 'נציגה', // Hebrew: representative/human/person
+        ]
 
-        if (isTransferMessage) {
+        // Check if message contains BOTH a transfer word AND a human word
+        // This ensures we're talking about transferring TO a human, not just using the words separately
+        const hasTransferWord = transferWords.some(word => lowerMessage.includes(word.toLowerCase()))
+        const hasHumanWord = humanWords.some(word => lowerMessage.includes(word.toLowerCase()))
+        const isTransferIntent = hasTransferWord && hasHumanWord
+
+        if (isTransferIntent) {
+          console.log('🔔 Transfer intent detected in Betti\'s message:', betiMessage.substring(0, 100))
           pendingTransferRef.current = { reason: 'Customer requested human assistance' }
         }
 
