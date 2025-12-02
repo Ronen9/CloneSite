@@ -1,28 +1,38 @@
 // Vercel serverless function for cloning websites
 const axios = require('axios');
-const { JSDOM } = require('jsdom');
 
-// Helper: extract clean text content from HTML
+// Helper: lightweight text extraction without JSDOM (for Vercel compatibility)
 function extractTextFromHtml(html) {
   try {
-    const dom = new JSDOM(html);
-    const document = dom.window.document;
+    // Remove script and style tags with their content
+    let text = html
+      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+      .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
+      .replace(/<head\b[^<]*(?:(?!<\/head>)<[^<]*)*<\/head>/gi, '')
+      .replace(/<noscript\b[^<]*(?:(?!<\/noscript>)<[^<]*)*<\/noscript>/gi, '')
+      .replace(/<svg\b[^<]*(?:(?!<\/svg>)<[^<]*)*<\/svg>/gi, '');
 
-    // Remove only truly non-content elements (scripts, styles, etc)
-    const elementsToRemove = document.querySelectorAll('head, script, style, noscript, iframe, svg, link, meta');
-    elementsToRemove.forEach(el => el.remove());
+    // Remove HTML comments
+    text = text.replace(/<!--[\s\S]*?-->/g, '');
 
-    // Remove only ads and popups, but keep navigation and footer (they have useful content)
-    const uiElements = document.querySelectorAll('.ads, .advertisement, [class*="cookie"], [class*="popup"], [id*="cookie"], [id*="popup"]');
-    uiElements.forEach(el => el.remove());
+    // Remove all remaining HTML tags
+    text = text.replace(/<[^>]+>/g, ' ');
 
-    // Get text content from body (include everything)
-    const text = document.body?.textContent || '';
+    // Decode common HTML entities
+    text = text
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&quot;/g, '"')
+      .replace(/&apos;/g, "'")
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&amp;/g, '&')
+      .replace(/&#(\d+);/g, (_match, dec) => String.fromCharCode(dec))
+      .replace(/&#x([0-9a-fA-F]+);/g, (_match, hex) => String.fromCharCode(parseInt(hex, 16)));
 
-    // Clean up the text: normalize whitespace but preserve structure
+    // Clean up whitespace
     const cleanedText = text
-      .replace(/[ \t]+/g, ' ') // Replace multiple spaces/tabs with single space
-      .replace(/\n\s*\n\s*\n+/g, '\n\n') // Replace 3+ newlines with 2
+      .replace(/[ \t]+/g, ' ')
+      .replace(/\n\s*\n\s*\n+/g, '\n\n')
       .split('\n')
       .map(line => line.trim())
       .filter(line => line.length > 0)
