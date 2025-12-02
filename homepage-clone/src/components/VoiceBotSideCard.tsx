@@ -825,12 +825,14 @@ CONVERSATION STYLE:
       }
       dataChannel.send(JSON.stringify(reduceVadSensitivity))
 
-      // Send the opening greeting
+      // Send the opening greeting (use bot-specific greeting)
+      const currentBot = getBotPreset(selectedBotId)
+      const botGreeting = currentBot?.greeting || 'Hi! How can I help you today?'
       const greetingEvent = {
         type: 'response.create',
         response: {
           modalities: ['text', 'audio'],
-          instructions: 'Say exactly this in Hebrew: היי אני בטי, עם מי יש לי את הכבוד?'
+          instructions: `Say exactly this: ${botGreeting}`
         }
       }
       dataChannel.send(JSON.stringify(greetingEvent))

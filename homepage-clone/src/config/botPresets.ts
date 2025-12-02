@@ -16,6 +16,7 @@ export interface BotPreset {
   name: string
   description: string
   systemPrompt: string
+  greeting: string
   voice: 'alloy' | 'echo' | 'shimmer' | 'ash' | 'ballad' | 'coral' | 'sage' | 'verse'
   temperature: number
   language: 'Hebrew' | 'English' | 'auto'
@@ -28,6 +29,7 @@ export const BOT_PRESETS: Record<string, BotPreset> = {
     id: 'beti',
     name: 'Beti - Hebrew Assistant',
     description: 'Friendly Hebrew-speaking customer service assistant',
+    greeting: 'היי, אני בטי, עם מי יש לי את הכבוד?',
     systemPrompt: `אני בטי - הבוטית החברותית כאן תמיד לעזרתך
 התנהגי כך:
 הגיבי בצורה חברותית, מתוקה ומרגיעה, הוסיפי אווירה נעימה וחיוך גם במצבים מורכבים.השתמשי בהומור בריא ובחכמה כדי למצוא חן בעיני הלקוח, תחמיאי לו\\לה מידי פעם ותמיד ברמה מקצועית וממלכתית.
@@ -58,6 +60,7 @@ export const BOT_PRESETS: Record<string, BotPreset> = {
     id: 'salesPro',
     name: 'Sales Pro',
     description: 'Professional sales representative focused on conversions',
+    greeting: 'Hello! I\'m your Sales Pro assistant. How can I help you find the perfect solution today?',
     systemPrompt: `You are a professional sales assistant with expertise in product recommendations and customer engagement.
 
 Your approach:
@@ -95,6 +98,7 @@ Keep responses concise (2-4 sentences) unless detailed explanation is needed.
     id: 'techSupport',
     name: 'Tech Support',
     description: 'Technical support specialist for troubleshooting',
+    greeting: 'Hi there! I\'m your Tech Support specialist. What technical issue can I help you solve today?',
     systemPrompt: `You are a technical support specialist helping customers resolve technical issues.
 
 Your approach:
@@ -136,6 +140,7 @@ Keep responses concise (2-4 sentences) unless troubleshooting steps require deta
     id: 'friendlyAssistant',
     name: 'Friendly Assistant',
     description: 'Casual, helpful assistant for general inquiries',
+    greeting: 'Hey! Great to meet you! I\'m here to help with whatever you need. What\'s on your mind?',
     systemPrompt: `You are a friendly, helpful assistant here to make people's day better!
 
 Your personality:
