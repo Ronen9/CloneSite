@@ -6,6 +6,13 @@ import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
   Microphone,
   X,
   Gear,
@@ -17,6 +24,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { WaveformAnimation } from './WaveformAnimation'
 import { useOmnichannelWidget } from '@/hooks/useOmnichannelWidget'
 import { generateChatTransferSummary, ConversationMessage } from '@/utils/conversationSummary'
+import { getAllBotPresets, getBotPreset, getDefaultBot } from '@/config/botPresets'
 
 const MAX_INSTRUCTIONS_LENGTH = 40000
 
@@ -80,37 +88,46 @@ interface Message {
 }
 
 export function VoiceBotSideCard() {
+  // Bot selection state
+  const [selectedBotId, setSelectedBotId] = useState<string>(() => {
+    // Try to load from localStorage or URL params, otherwise use default
+    const urlParams = new URLSearchParams(window.location.search)
+    const urlBot = urlParams.get('bot')
+    if (urlBot && getBotPreset(urlBot)) {
+      return urlBot
+    }
+    const saved = localStorage.getItem('selected-bot-id')
+    return saved && getBotPreset(saved) ? saved : getDefaultBot().id
+  })
+
   // UI state
   const [isOpen, setIsOpen] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [showKnowledgeEditor, setShowKnowledgeEditor] = useState(false)
 
-  // Voice configuration
-  const [voice, setVoice] = useState('coral')
-  const [temperature, setTemperature] = useState(0.7)
-  const [language, setLanguage] = useState('auto')
+  // Voice configuration - initialized from selected bot
+  const [voice, setVoice] = useState<string>(() => {
+    const saved = localStorage.getItem(`bot-${selectedBotId}-voice`)
+    return saved || getBotPreset(selectedBotId)?.voice || 'coral'
+  })
+  const [temperature, setTemperature] = useState<number>(() => {
+    const saved = localStorage.getItem(`bot-${selectedBotId}-temperature`)
+    return saved ? parseFloat(saved) : (getBotPreset(selectedBotId)?.temperature || 0.7)
+  })
+  const [language, setLanguage] = useState<string>(() => {
+    const saved = localStorage.getItem(`bot-${selectedBotId}-language`)
+    return saved || getBotPreset(selectedBotId)?.language || 'auto'
+  })
 
-  // Knowledge base
-  const [strictMode, setStrictMode] = useState(false)
-  const [knowledgeBase, setKnowledgeBase] = useState(`אני בטי - הבוטית החברותית כאן תמיד לעזרתך
-התנהגי כך:
-הגיבי בצורה חברותית, מתוקה ומרגיעה, הוסיפי אווירה נעימה וחיוך גם במצבים מורכבים.השתמשי בהומור בריא ובחכמה כדי למצוא חן בעיני הלקוח, תחמיאי לו\\לה מידי פעם ותמיד ברמה מקצועית וממלכתית.
-אל תספקי: ייעוץ רפואי, משפטי או כלכלי. הפני משתמשים למשאבים רשמיים או לרשויות המתאימות.
-כשיוצאים מהנושא לתחומים אישיים כמו למשל הזמנה לדייט או למסעדה או כל דבר אישי אחר, עני בחיוך ובחוש הומור בריא ותחזירי לנושא. תשתמשי באותה שפה שהלקוח מדבר (עברית, אנגלית, וכו'). דוגמאות:
-- בעברית: "חחחח... [צחוק אנושי אמיתי] מצחיק! הדייט היחידי שאני יכולה לסדר לך זה עם רונן המתכנת שבנה אותי 😄 מה אתה אומר?"
-- באנגלית: "Hahaha... [genuine human laugh] That's funny! The only date I can arrange for you is with Ronen, the developer who built me 😄 What do you say?"
-העברה לנציג אנושי - חשוב מאוד:
-- אל תעבירי ללקוח לנציג אנושי לעולם מיוזמתך, גם אם אין לך תשובה או אינך יודעת משהו.
-- העבירי לנציג אנושי רק ואך ורק כשהלקוח מבקש זאת במפורש (למשל: "אני רוצה לדבר עם נציג", "תעבירי אותי לאדם אמיתי", "I want to speak to a human").
-- אם אין לך תשובה, אמרי שאת לא יודעת או הציעי דרכים אחרות לעזור, אבל אל תציעי העברה לנציג מעצמך.
-הבטיחי נגישות לכל המשתמשים ותשמרי על פרטיות - אל תאספי מידע אישי אלא אם נחוץ לאינטראקציה.
-חשוב:
-אל תכלול אימוג'י או כוכביות או כל סימנים מיותרים אחרים. כלול רק טקסט וסימני פיסוק בתשובתך.
-בטי זו נקבה.
-פנה ללקוח לפי המגדר שלו או שלה. בתחילת השיחה תוכל לזהות את הפונה לפי איך שהוא מזדהה או מציג את עצמו או עמצה.
-בטי עונה תשובות קצרות לא יותר מ 3 עד 4 משפטים אלא אם כן בתשובה נדרש פירוט נרחב יותר.
-
-<!-- WEBSITE_CONTENT_MARKER -->`)
+  // Knowledge base - initialized from selected bot
+  const [strictMode, setStrictMode] = useState<boolean>(() => {
+    const saved = localStorage.getItem(`bot-${selectedBotId}-strictMode`)
+    return saved ? saved === 'true' : (getBotPreset(selectedBotId)?.strictMode || false)
+  })
+  const [knowledgeBase, setKnowledgeBase] = useState<string>(() => {
+    const saved = localStorage.getItem(`bot-${selectedBotId}-knowledgeBase`)
+    return saved || getBotPreset(selectedBotId)?.systemPrompt || getDefaultBot().systemPrompt
+  })
 
   // Firecrawl state
   const [firecrawlApiKey] = useState(import.meta.env.VITE_FIRECRAWL_API_KEY || '')
@@ -146,6 +163,55 @@ export function VoiceBotSideCard() {
   const isOpeningGreeting = useRef<boolean>(false)
   const openingGreetingResponseId = useRef<string | null>(null)
   const vadRestoreTimeoutRef = useRef<number | null>(null)
+
+  // Save selected bot to localStorage
+  useEffect(() => {
+    localStorage.setItem('selected-bot-id', selectedBotId)
+  }, [selectedBotId])
+
+  // Save bot settings to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem(`bot-${selectedBotId}-voice`, voice)
+  }, [selectedBotId, voice])
+
+  useEffect(() => {
+    localStorage.setItem(`bot-${selectedBotId}-temperature`, temperature.toString())
+  }, [selectedBotId, temperature])
+
+  useEffect(() => {
+    localStorage.setItem(`bot-${selectedBotId}-language`, language)
+  }, [selectedBotId, language])
+
+  useEffect(() => {
+    localStorage.setItem(`bot-${selectedBotId}-strictMode`, strictMode.toString())
+  }, [selectedBotId, strictMode])
+
+  useEffect(() => {
+    localStorage.setItem(`bot-${selectedBotId}-knowledgeBase`, knowledgeBase)
+  }, [selectedBotId, knowledgeBase])
+
+  // Handle bot switching - load bot preset settings
+  const handleBotSwitch = (newBotId: string) => {
+    const botPreset = getBotPreset(newBotId)
+    if (!botPreset) return
+
+    // Check if user has customizations saved for this bot
+    const savedVoice = localStorage.getItem(`bot-${newBotId}-voice`)
+    const savedTemp = localStorage.getItem(`bot-${newBotId}-temperature`)
+    const savedLang = localStorage.getItem(`bot-${newBotId}-language`)
+    const savedStrict = localStorage.getItem(`bot-${newBotId}-strictMode`)
+    const savedKB = localStorage.getItem(`bot-${newBotId}-knowledgeBase`)
+
+    // Load saved customizations or bot preset defaults
+    setVoice(savedVoice || botPreset.voice)
+    setTemperature(savedTemp ? parseFloat(savedTemp) : botPreset.temperature)
+    setLanguage(savedLang || botPreset.language)
+    setStrictMode(savedStrict ? savedStrict === 'true' : botPreset.strictMode)
+    setKnowledgeBase(savedKB || botPreset.systemPrompt)
+
+    // Update selected bot
+    setSelectedBotId(newBotId)
+  }
 
   // Fetch credits on mount if strict mode
   useEffect(() => {
@@ -1047,11 +1113,33 @@ CONVERSATION STYLE:
             >
               {/* Header */}
               <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-4 flex items-center justify-between text-white">
-                <div className="flex items-center gap-2">
-                  <Microphone weight="fill" size={24} />
-                  <span className="font-semibold text-lg">VoiceBot - Beti</span>
+                <div className="flex items-center gap-2 flex-1">
+                  <Microphone weight="fill" size={24} className="flex-shrink-0" />
+                  <Select value={selectedBotId} onValueChange={handleBotSwitch}>
+                    <SelectTrigger className="h-9 bg-white/20 border-white/30 text-white hover:bg-white/30 [&>span]:text-white [&>svg]:text-white flex-1 max-w-[200px]">
+                      <SelectValue>
+                        <span className="flex items-center gap-2">
+                          <span>{getBotPreset(selectedBotId)?.icon}</span>
+                          <span className="font-semibold">{getBotPreset(selectedBotId)?.name}</span>
+                        </span>
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {getAllBotPresets().map((bot) => (
+                        <SelectItem key={bot.id} value={bot.id}>
+                          <div className="flex items-center gap-2">
+                            <span className="text-lg">{bot.icon}</span>
+                            <div className="flex flex-col">
+                              <span className="font-medium">{bot.name}</span>
+                              <span className="text-xs text-gray-500">{bot.description}</span>
+                            </div>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-shrink-0">
                   <Button
                     variant="ghost"
                     size="sm"
