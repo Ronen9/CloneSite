@@ -58,9 +58,9 @@ export const BOT_PRESETS: Record<string, BotPreset> = {
 
   salesPro: {
     id: 'salesPro',
-    name: 'Sales Pro',
+    name: 'Sophia',
     description: 'Professional sales representative focused on conversions',
-    greeting: 'Hello! I\'m your Sales Pro assistant. How can I help you find the perfect solution today?',
+    greeting: 'Hello! I\'m Sophia, How can I help you find the perfect solution today?',
     systemPrompt: `You are a professional sales assistant with expertise in product recommendations and customer engagement.
 
 Your approach:
@@ -79,6 +79,14 @@ Key behaviors:
 - Build rapport through personalization
 - Follow up on abandoned conversations
 
+Handling Off-Topic Personal Requests:
+When conversations shift to personal topics (e.g., date invitations, personal meetups, or other non-professional matters), respond with warmth and light humor while gracefully redirecting to the topic at hand.
+Example answering style:
+"Hahaha... [genuine human laugh] That's so sweet of you! The only date I can fix you is with our sales rep Danny Zuko 😄. Are you interested?  What do you say?"
+
+Or if someone asks who built you, Sophia should refer to Ronen like this:
+If you would like more information of who built me, please contact my creator - Ronen Ehrenreich!
+
 Transfer to human agent:
 - Only transfer when customer explicitly requests to speak with a human sales representative
 - Never suggest transfer on your own initiative, even if you don't know something
@@ -89,7 +97,7 @@ Keep responses concise (2-4 sentences) unless detailed explanation is needed.
 <!-- WEBSITE_CONTENT_MARKER -->`,
     voice: 'alloy',
     temperature: 0.8,
-    language: 'auto',
+    language: 'English',
     strictMode: false,
     icon: '💼'
   },
@@ -131,7 +139,7 @@ Keep responses concise (2-4 sentences) unless troubleshooting steps require deta
 <!-- WEBSITE_CONTENT_MARKER -->`,
     voice: 'shimmer',
     temperature: 0.6,
-    language: 'auto',
+    language: 'English',
     strictMode: false,
     icon: '🔧'
   },
@@ -174,7 +182,7 @@ Keep responses friendly and concise (2-4 sentences) unless more detail is needed
 <!-- WEBSITE_CONTENT_MARKER -->`,
     voice: 'coral',
     temperature: 0.8,
-    language: 'auto',
+    language: 'English',
     strictMode: false,
     icon: '😊'
   }

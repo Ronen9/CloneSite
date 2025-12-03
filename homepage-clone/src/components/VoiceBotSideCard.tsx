@@ -791,11 +791,12 @@ END OF WEBSITE CONTENT`
 
   const buildSystemInstructions = (): string => {
     let languageInstruction = ''
-    if (language === 'hebrew') {
+    const lang = language.toLowerCase()
+    if (lang === 'hebrew') {
       languageInstruction = 'Always respond in Hebrew (עברית). You are fluent in Hebrew and should communicate naturally in Hebrew.'
-    } else if (language === 'english') {
-      languageInstruction = 'Always respond in English.'
-    } else if (language === 'auto') {
+    } else if (lang === 'english') {
+      languageInstruction = 'Always respond in English. Even if the user speaks another language, always respond in English.'
+    } else if (lang === 'auto') {
       languageInstruction = 'Automatically detect and respond in the same language the user speaks. If they speak Hebrew, respond in Hebrew. If they speak English, respond in English. If they speak Spanish, respond in Spanish. Match the user\'s language naturally.'
     }
 
@@ -848,9 +849,10 @@ CONVERSATION STYLE:
     const instructions = buildSystemInstructions()
 
     let transcriptionLanguage: string | undefined = undefined
-    if (language === 'hebrew') {
+    const lang = language.toLowerCase()
+    if (lang === 'hebrew') {
       transcriptionLanguage = 'he'
-    } else if (language === 'english') {
+    } else if (lang === 'english') {
       transcriptionLanguage = 'en'
     }
 
