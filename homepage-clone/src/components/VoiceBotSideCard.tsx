@@ -126,7 +126,27 @@ export function VoiceBotSideCard() {
   })
   const [knowledgeBase, setKnowledgeBase] = useState<string>(() => {
     const saved = localStorage.getItem(`bot-${selectedBotId}-knowledgeBase`)
-    return saved || getBotPreset(selectedBotId)?.systemPrompt || getDefaultBot().systemPrompt
+    const botPreset = getBotPreset(selectedBotId) || getDefaultBot()
+
+    if (!saved) {
+      return botPreset.systemPrompt
+    }
+
+    // Process knowledge base: preserve user changes BEFORE marker, reset content AFTER marker
+    const marker = '<!-- WEBSITE_CONTENT_MARKER -->'
+    const savedParts = saved.split(marker)
+    const presetParts = botPreset.systemPrompt.split(marker)
+
+    if (savedParts.length > 1 && presetParts.length > 1) {
+      // User has customized the base prompt - preserve it, but reset website content
+      return savedParts[0] + marker + (presetParts[1] || '')
+    } else if (savedParts.length === 1 && presetParts.length > 1) {
+      // No marker in saved version, use preset
+      return botPreset.systemPrompt
+    } else {
+      // Use saved version if no marker in preset
+      return saved
+    }
   })
 
   // Firecrawl state
@@ -202,12 +222,15 @@ export function VoiceBotSideCard() {
     const savedStrict = localStorage.getItem(`bot-${newBotId}-strictMode`)
     const savedKB = localStorage.getItem(`bot-${newBotId}-knowledgeBase`)
 
+    // When switching bots, preserve full knowledge base (including website content)
+    const finalKnowledgeBase = savedKB || botPreset.systemPrompt
+
     // Load saved customizations or bot preset defaults
     setVoice(savedVoice || botPreset.voice)
     setTemperature(savedTemp ? parseFloat(savedTemp) : botPreset.temperature)
     setLanguage(savedLang || botPreset.language)
     setStrictMode(savedStrict ? savedStrict === 'true' : botPreset.strictMode)
-    setKnowledgeBase(savedKB || botPreset.systemPrompt)
+    setKnowledgeBase(finalKnowledgeBase)
 
     // Update selected bot
     setSelectedBotId(newBotId)
@@ -1121,7 +1144,11 @@ CONVERSATION STYLE:
                     <SelectTrigger className="h-9 bg-white/20 border-white/30 text-white hover:bg-white/30 [&>span]:text-white [&>svg]:text-white flex-1 max-w-[200px]">
                       <SelectValue>
                         <span className="flex items-center gap-2">
-                          <span>{getBotPreset(selectedBotId)?.icon}</span>
+                          {getBotPreset(selectedBotId)?.icon.startsWith('/') || getBotPreset(selectedBotId)?.icon.startsWith('http') ? (
+                            <img src={getBotPreset(selectedBotId)?.icon} alt="Bot icon" className="w-5 h-5 rounded-full object-cover" />
+                          ) : (
+                            <span>{getBotPreset(selectedBotId)?.icon}</span>
+                          )}
                           <span className="font-semibold">{getBotPreset(selectedBotId)?.name}</span>
                         </span>
                       </SelectValue>
@@ -1130,7 +1157,11 @@ CONVERSATION STYLE:
                       {getAllBotPresets().map((bot) => (
                         <SelectItem key={bot.id} value={bot.id}>
                           <div className="flex items-center gap-2">
-                            <span className="text-lg">{bot.icon}</span>
+                            {bot.icon.startsWith('/') || bot.icon.startsWith('http') ? (
+                              <img src={bot.icon} alt={`${bot.name} icon`} className="w-6 h-6 rounded-full object-cover" />
+                            ) : (
+                              <span className="text-lg">{bot.icon}</span>
+                            )}
                             <div className="flex flex-col">
                               <span className="font-medium">{bot.name}</span>
                               <span className="text-xs text-gray-500">{bot.description}</span>

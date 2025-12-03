@@ -29,7 +29,9 @@ A modern website cloning tool with an integrated AI voice assistant powered by A
 - 🔄 **Human Handoff** - Seamlessly transfer conversations to Microsoft Omnichannel chat
 - 🌐 **Web Scraping** - Automatically crawl websites to build AI knowledge base
 - 📱 **Responsive Design** - Works on desktop and mobile
-- 🔒 **Secure** - API keys stored in environment variables
+- 🔒 **Secure Authentication** - Microsoft OAuth integration via Clerk
+- 👥 **User Management** - Control access with email-based authentication
+- 🤖 **Multiple Bot Personalities** - Switch between different AI assistants (Beti, Sales Pro, Tech Support, Friendly Assistant)
 
 ---
 
@@ -56,7 +58,18 @@ A modern website cloning tool with an integrated AI voice assistant powered by A
 
 ### Step 3: Get Your API Keys
 
-You need **3 API keys** to use all features:
+You need **4 API keys** to use all features:
+
+#### 🔑 **0. Clerk Publishable Key** (For authentication)
+
+1. Go to [https://clerk.com](https://clerk.com)
+2. Sign up for a **free account**
+3. Create a new application
+4. Go to **API Keys** in the dashboard
+5. Copy your **Publishable Key** (starts with `pk_test_`)
+6. **Enable Microsoft OAuth**: Go to **User & Authentication** → **Social Connections** → Enable **Microsoft**
+7. **Save the key** - you'll need it in Step 4
+8. For detailed setup, see [CLERK_SETUP.md](CLERK_SETUP.md)
 
 #### 🔑 **1. Firecrawl API Key** (For website cloning)
 
@@ -101,6 +114,9 @@ You need **3 API keys** to use all features:
 5. **Copy and paste** this template:
 
 ```bash
+# Clerk Authentication (for user login)
+VITE_CLERK_PUBLISHABLE_KEY=pk_test_your-clerk-key-here
+
 # Firecrawl API Key (for website cloning)
 FIRECRAWL_API_KEY=your-firecrawl-key-here
 
@@ -112,6 +128,7 @@ AZURE_OPENAI_RESOURCE=your-resource-name-here
 ```
 
 6. **Replace the placeholder values** with your actual API keys:
+   - Replace `pk_test_your-clerk-key-here` with your Clerk publishable key from Step 3
    - Replace `your-firecrawl-key-here` with your Firecrawl API key from Step 3
    - Replace `your-azure-openai-key-here` with your Azure OpenAI API key from Step 3
    - Replace `https://your-resource.openai.azure.com/` with your Azure endpoint from Step 3
@@ -122,6 +139,7 @@ AZURE_OPENAI_RESOURCE=your-resource-name-here
 
 **Example of what it should look like:**
 ```bash
+VITE_CLERK_PUBLISHABLE_KEY=pk_test_abc123def456ghi789
 FIRECRAWL_API_KEY=fc-abc123def456ghi789
 AZURE_OPENAI_API_KEY=1234567890abcdef1234567890abcdef
 AZURE_OPENAI_ENDPOINT=https://my-openai.openai.azure.com/

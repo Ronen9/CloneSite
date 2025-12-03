@@ -8,10 +8,15 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { SplashCursor } from '@/components/ui/splash-cursor'
 import { VoiceChat } from '@/components/VoiceChat'
 import { VoiceBotSideCard } from '@/components/VoiceBotSideCard'
+import { UserButton } from '@/components/UserButton'
+import { useUser } from '@clerk/clerk-react'
 import { Globe, Code, Sparkle, WarningCircle, Microphone, CaretDown, CaretUp } from '@phosphor-icons/react'
 import { motion, AnimatePresence } from 'framer-motion'
 
 function App() {
+  // Get user information from Clerk
+  const { user } = useUser()
+
   // Tab navigation state
   const [activeTab, setActiveTab] = useState<'clone' | 'voice'>('clone')
 
@@ -115,6 +120,7 @@ function App() {
   return (
     <div className="min-h-screen relative overflow-hidden">
       <SplashCursor />
+      <UserButton />
       <div 
         className="absolute inset-0 bg-gradient-to-br from-violet-100/30 via-indigo-50/30 to-rose-100/30 pointer-events-none z-0"
         style={{
@@ -200,7 +206,14 @@ function App() {
                       animate={{ scale: 1 }}
                       transition={{ duration: 0.5, type: 'spring' }}
                     >
-                      <h1 className="text-3xl md:text-4xl font-semibold text-foreground tracking-tight leading-tight">Ronen's Tailored Chatbot Demo</h1>
+                      <h1 className="text-3xl md:text-4xl font-semibold text-foreground tracking-tight leading-tight">
+                        {user?.firstName ? `Hi ${user.firstName},` : "Ronen's Tailored Chatbot Demo"}
+                      </h1>
+                      {user?.firstName && (
+                        <p className="text-lg text-muted-foreground mt-2">
+                          Welcome to Ronen's voice/chat bot demo website.
+                        </p>
+                      )}
                     </motion.div>
                   </div>
 

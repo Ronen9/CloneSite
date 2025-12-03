@@ -27,8 +27,8 @@ export interface BotPreset {
 export const BOT_PRESETS: Record<string, BotPreset> = {
   beti: {
     id: 'beti',
-    name: 'Beti - Hebrew Assistant',
-    description: 'Friendly Hebrew-speaking customer service assistant',
+    name: 'Beti',
+    description: 'Friendly customer service assistant',
     greeting: 'היי, אני בטי, עם מי יש לי את הכבוד?',
     systemPrompt: `אני בטי - הבוטית החברותית כאן תמיד לעזרתך
 התנהגי כך:
@@ -53,7 +53,7 @@ export const BOT_PRESETS: Record<string, BotPreset> = {
     temperature: 0.7,
     language: 'auto',
     strictMode: false,
-    icon: '🇮🇱'
+    icon: '/betti-icon.png'
   },
 
   salesPro: {
@@ -89,7 +89,7 @@ Keep responses concise (2-4 sentences) unless detailed explanation is needed.
 <!-- WEBSITE_CONTENT_MARKER -->`,
     voice: 'alloy',
     temperature: 0.8,
-    language: 'English',
+    language: 'auto',
     strictMode: false,
     icon: '💼'
   },
@@ -131,7 +131,7 @@ Keep responses concise (2-4 sentences) unless troubleshooting steps require deta
 <!-- WEBSITE_CONTENT_MARKER -->`,
     voice: 'shimmer',
     temperature: 0.6,
-    language: 'English',
+    language: 'auto',
     strictMode: false,
     icon: '🔧'
   },
