@@ -2,7 +2,7 @@ import { UserButton as ClerkUserButton } from '@clerk/clerk-react'
 
 export function UserButton() {
   return (
-    <div className="fixed top-4 right-4 z-[100]">
+    <div className="fixed top-4 right-32 z-[100]">
       <ClerkUserButton
         appearance={{
           elements: {

@@ -104,6 +104,16 @@ export function VoiceBotSideCard() {
   const [isOpen, setIsOpen] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [showKnowledgeEditor, setShowKnowledgeEditor] = useState(false)
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
+
+  // Initial settings values for tracking changes
+  const [initialSettings, setInitialSettings] = useState({
+    voice: '',
+    temperature: 0,
+    language: '',
+    strictMode: false,
+    knowledgeBase: ''
+  })
 
   // Voice configuration - initialized from selected bot
   const [voice, setVoice] = useState<string>(() => {
@@ -243,6 +253,19 @@ export function VoiceBotSideCard() {
     }
   }, [strictMode])
 
+  // Track changes to settings
+  useEffect(() => {
+    if (showSettings && initialSettings.voice) {
+      const hasChanges =
+        voice !== initialSettings.voice ||
+        temperature !== initialSettings.temperature ||
+        language !== initialSettings.language ||
+        strictMode !== initialSettings.strictMode ||
+        knowledgeBase !== initialSettings.knowledgeBase
+      setHasUnsavedChanges(hasChanges)
+    }
+  }, [voice, temperature, language, strictMode, knowledgeBase, showSettings, initialSettings])
+
   const fetchCredits = async () => {
     try {
       const response = await fetch('/api/firecrawl-credits')
@@ -263,6 +286,42 @@ export function VoiceBotSideCard() {
       setCredits(null)
       setPlanCredits(null)
     }
+  }
+
+  // Save settings to localStorage
+  const saveSettings = () => {
+    localStorage.setItem(`bot-${selectedBotId}-voice`, voice)
+    localStorage.setItem(`bot-${selectedBotId}-temperature`, temperature.toString())
+    localStorage.setItem(`bot-${selectedBotId}-language`, language)
+    localStorage.setItem(`bot-${selectedBotId}-strictMode`, strictMode.toString())
+    localStorage.setItem(`bot-${selectedBotId}-knowledgeBase`, knowledgeBase)
+    setHasUnsavedChanges(false)
+  }
+
+  // Handle close with unsaved changes check
+  const handleCloseSettings = () => {
+    if (hasUnsavedChanges) {
+      const confirmed = window.confirm(
+        'You have unsaved changes. Do you want to close without saving?'
+      )
+      if (!confirmed) {
+        return
+      }
+      // Revert to initial settings
+      setVoice(initialSettings.voice)
+      setTemperature(initialSettings.temperature)
+      setLanguage(initialSettings.language)
+      setStrictMode(initialSettings.strictMode)
+      setKnowledgeBase(initialSettings.knowledgeBase)
+    }
+    setShowSettings(false)
+    setHasUnsavedChanges(false)
+  }
+
+  // Handle save and close
+  const handleSaveAndClose = () => {
+    saveSettings()
+    setShowSettings(false)
   }
 
   const handleCrawl = async () => {
@@ -1176,7 +1235,18 @@ CONVERSATION STYLE:
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => setShowSettings(true)}
+                    onClick={() => {
+                      // Capture initial settings when opening the modal
+                      setInitialSettings({
+                        voice,
+                        temperature,
+                        language,
+                        strictMode,
+                        knowledgeBase
+                      })
+                      setHasUnsavedChanges(false)
+                      setShowSettings(true)
+                    }}
                     className="text-white hover:bg-white/20"
                   >
                     <Gear size={20} />
@@ -1332,7 +1402,7 @@ CONVERSATION STYLE:
                   className="fixed inset-0 bg-black/50 z-[95] flex items-center justify-center p-4"
                   onClick={(e) => {
                     if (e.target === e.currentTarget) {
-                      setShowSettings(false)
+                      handleCloseSettings()
                     }
                   }}
                 >
@@ -1345,10 +1415,15 @@ CONVERSATION STYLE:
                     {/* Sticky Header */}
                     <div className="sticky top-0 bg-white z-10 p-6 pb-4 border-b border-gray-200">
                       <div className="flex items-center justify-between">
-                        <h2 className="text-2xl font-bold">Settings</h2>
+                        <div>
+                          <h2 className="text-2xl font-bold">Settings</h2>
+                          {hasUnsavedChanges && (
+                            <p className="text-sm text-amber-600 mt-1">● Unsaved changes</p>
+                          )}
+                        </div>
                         <Button
                           variant="ghost"
-                          onClick={() => setShowSettings(false)}
+                          onClick={handleCloseSettings}
                         >
                           <X size={24} />
                         </Button>
@@ -1542,6 +1617,23 @@ CONVERSATION STYLE:
                       </div>
                     </div>
                     {/* End of scrollable content */}
+
+                    {/* Sticky Footer with Action Buttons */}
+                    <div className="sticky bottom-0 bg-white border-t border-gray-200 p-4 flex gap-3 justify-end">
+                      <Button
+                        variant="outline"
+                        onClick={handleCloseSettings}
+                        className="px-6"
+                      >
+                        Close
+                      </Button>
+                      <Button
+                        onClick={handleSaveAndClose}
+                        className="px-6 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white"
+                      >
+                        Save & Close
+                      </Button>
+                    </div>
                   </motion.div>
                 </motion.div>
               )}
