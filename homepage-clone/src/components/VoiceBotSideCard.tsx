@@ -1554,7 +1554,7 @@ CONVERSATION STYLE:
                         {showKnowledgeEditor && (
                           <div className="space-y-2">
                             <p className="text-sm text-gray-600">
-                              <em>The knowledge base starts with Beti's personality. Website content will be added below.</em>
+                              <em>The knowledge base starts with the bot's personality. Website content will be added below.</em>
                             </p>
                             <Textarea
                               value={knowledgeBase}
