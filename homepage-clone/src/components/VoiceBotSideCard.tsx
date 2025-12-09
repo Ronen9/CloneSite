@@ -1280,11 +1280,9 @@ CONVERSATION STYLE:
                 </div>
               </div>
 
-              {/* Content */}
-              <div className="flex-1 overflow-y-auto">
-                {/* Session Controls - Sticky */}
-                <div className="sticky top-0 bg-white z-10 p-4 pb-2 border-b border-gray-200">
-                  <div className="flex gap-2">
+              {/* Session Controls - Fixed at top of content */}
+              <div className="bg-white p-4 pb-2 border-b border-gray-200 flex-shrink-0">
+                <div className="flex gap-2">
                   <Button
                     onClick={startVoiceSession}
                     disabled={isSessionActive || isCrawling}
@@ -1317,11 +1315,11 @@ CONVERSATION STYLE:
                   >
                     End Session
                   </Button>
-                  </div>
                 </div>
+              </div>
 
-                {/* Scrollable Content Area */}
-                <div className="p-4 space-y-4">
+              {/* Scrollable Content Area */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-4">
                 {/* Widget Availability Warning */}
                 {!omnichannelWidget.isAvailable && isSessionActive && (
                   <Alert className="bg-yellow-50 border-yellow-200">
@@ -1428,7 +1426,6 @@ CONVERSATION STYLE:
                     </motion.div>
                   )}
                 </AnimatePresence>
-                </div>
               </div>
             </motion.div>
 
