@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/select'
 import {
   Microphone,
+  MicrophoneSlash,
   X,
   Gear,
   Fire,
@@ -173,6 +174,7 @@ export function VoiceBotSideCard() {
   const [isSessionEnded, setIsSessionEnded] = useState(false)
   const [transcript, setTranscript] = useState<Message[]>([])
   const [isSpeaking, setIsSpeaking] = useState(false)
+  const [isMuted, setIsMuted] = useState(false)
 
   // Chat transfer state
   const [conversationMessages, setConversationMessages] = useState<ConversationMessage[]>([])
@@ -193,6 +195,19 @@ export function VoiceBotSideCard() {
   const isOpeningGreeting = useRef<boolean>(false)
   const openingGreetingResponseId = useRef<string | null>(null)
   const vadRestoreTimeoutRef = useRef<number | null>(null)
+
+  // Toggle mute function
+  const toggleMute = () => {
+    if (!isSessionActive || !peerConnectionRef.current) return
+
+    const senders = peerConnectionRef.current.getSenders()
+    senders.forEach(sender => {
+      if (sender.track?.kind === 'audio') {
+        sender.track.enabled = !sender.track.enabled
+        setIsMuted(!sender.track.enabled)
+      }
+    })
+  }
 
   // Save selected bot to localStorage
   useEffect(() => {
@@ -1147,6 +1162,7 @@ CONVERSATION STYLE:
     setIsSessionEnded(true)
     setIsSessionActive(false)
     setIsSpeaking(false)
+    setIsMuted(false)
     console.log('🛑 Session ended and cleaned up')
   }
 
@@ -1275,6 +1291,23 @@ CONVERSATION STYLE:
                   >
                     <Microphone className="mr-2" weight="fill" size={20} />
                     {isSessionActive ? '🔴 Active' : 'Start Session'}
+                  </Button>
+                  <Button
+                    onClick={toggleMute}
+                    disabled={!isSessionActive}
+                    className="flex-1 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white"
+                  >
+                    {isMuted ? (
+                      <>
+                        <MicrophoneSlash className="mr-2" weight="fill" size={20} />
+                        Unmute
+                      </>
+                    ) : (
+                      <>
+                        <Microphone className="mr-2" weight="fill" size={20} />
+                        Mute
+                      </>
+                    )}
                   </Button>
                   <Button
                     onClick={endVoiceSession}
